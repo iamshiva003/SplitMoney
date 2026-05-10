@@ -2,9 +2,26 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>UIBackgroundModes</key>
+	<key>CFBundleDisplayName</key>
+	<string>Split Money</string>
+	<key>CFBundleURLTypes</key>
 	<array>
-		<string>remote-notification</string>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>splitmoney</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.355163829896-edm10jatko5ce3idibkthcudp3e08td4</string>
+			</array>
+		</dict>
 	</array>
+	<key>GIDClientID</key>
+	<string>355163829896-edm10jatko5ce3idibkthcudp3e08td4.apps.googleusercontent.com</string>
+	<key>NSContactsUsageDescription</key>
+	<string>Split Money needs access to your contacts to let you add friends to groups.</string>
 </dict>
 </plist>

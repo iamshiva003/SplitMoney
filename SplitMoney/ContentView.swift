@@ -1,61 +1,48 @@
-//
-//  ContentView.swift
-//  SplitMoney
-//
-//  Created by Shivakumar Patil on 10/05/26.
-//
-
 import SwiftUI
 import SwiftData
 
 struct ContentView: View {
+    @Environment(AppState.self) var appState
+    
     @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
-
+    @AppStorage("loggedInUserId") private var loggedInUserId: String?
+    
     var body: some View {
-        NavigationSplitView {
-            List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))")
-                    } label: {
-                        Text(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))
-                    }
-                }
-                .onDelete(perform: deleteItems)
+        Group {
+            if appState.isAuthenticated {
+                HomeView()
+            } else {
+                LoginView()
             }
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
-                }
-                ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
-                    }
-                }
-            }
-        } detail: {
-            Text("Select an item")
+        }
+        .sheet(isPresented: Bindable(appState).showIncomingShareFlow) {
+            IncomingShareView()
+        }
+        .onAppear {
+            checkLoginState()
         }
     }
-
-    private func addItem() {
-        withAnimation {
-            let newItem = Item(timestamp: Date())
-            modelContext.insert(newItem)
-        }
-    }
-
-    private func deleteItems(offsets: IndexSet) {
-        withAnimation {
-            for index in offsets {
-                modelContext.delete(items[index])
+    
+    private func checkLoginState() {
+        guard let userIdString = loggedInUserId, let uuid = UUID(uuidString: userIdString) else { return }
+        
+        let descriptor = FetchDescriptor<AppUser>(predicate: #Predicate { $0.id == uuid })
+        do {
+            let users = try modelContext.fetch(descriptor)
+            if let user = users.first {
+                appState.currentUser = user
+                appState.isAuthenticated = true
+            } else {
+                // User no longer exists in database, clear login state
+                loggedInUserId = nil
             }
+        } catch {
+            print("Error restoring session: \(error)")
         }
     }
 }
 
 #Preview {
     ContentView()
-        .modelContainer(for: Item.self, inMemory: true)
+        .environment(AppState())
 }
