@@ -9,6 +9,7 @@ class AppUser {
     var email: String
     var phoneNumber: String
     var password: String // Added for authentication
+    var profileImageData: Data? // User's profile photo
     
     @Relationship(inverse: \SplitGroup.members)
     var groups: [SplitGroup]? = []
@@ -17,13 +18,14 @@ class AppUser {
         "\(firstName) \(lastName)"
     }
     
-    init(id: UUID = UUID(), firstName: String, lastName: String, email: String, phoneNumber: String, password: String = "") {
+    init(id: UUID = UUID(), firstName: String, lastName: String, email: String, phoneNumber: String, password: String = "", profileImageData: Data? = nil) {
         self.id = id
         self.firstName = firstName
         self.lastName = lastName
         self.email = email
         self.phoneNumber = phoneNumber
         self.password = password
+        self.profileImageData = profileImageData
     }
 }
 
@@ -32,6 +34,7 @@ class SplitGroup {
     var id: UUID
     var name: String
     var currency: String = "🇮🇳 ₹ INR"
+    var imageData: Data? // Group photo
     @Relationship(deleteRule: .nullify) var members: [AppUser]
     @Relationship(deleteRule: .cascade) var expenses: [Expense]
     
@@ -40,10 +43,11 @@ class SplitGroup {
         return components.count >= 2 ? components[1] : "$"
     }
     
-    init(id: UUID = UUID(), name: String, currency: String = "🇮🇳 ₹ INR", members: [AppUser] = [], expenses: [Expense] = []) {
+    init(id: UUID = UUID(), name: String, currency: String = "🇮🇳 ₹ INR", imageData: Data? = nil, members: [AppUser] = [], expenses: [Expense] = []) {
         self.id = id
         self.name = name
         self.currency = currency
+        self.imageData = imageData
         self.members = members
         self.expenses = expenses
     }
@@ -102,4 +106,16 @@ struct SplitSummaryData: Hashable {
     let amount: Double
     let details: [PendingSplitDetail]
     let payerId: UUID
+    let splitType: SplitType
+}
+
+struct DeviceContact: Identifiable {
+    let id = UUID()
+    let firstName: String
+    let lastName: String
+    let phoneNumber: String
+    
+    var fullName: String {
+        return [firstName, lastName].filter { !$0.isEmpty }.joined(separator: " ")
+    }
 }

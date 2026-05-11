@@ -54,6 +54,7 @@ struct LoginView: View {
                     }
                     
                     Button(action: {
+                        hideKeyboard()
                         login()
                     }) {
                         Text("Sign In")
@@ -154,11 +155,7 @@ struct LoginView: View {
         do {
             let users = try modelContext.fetch(descriptor)
             if let user = users.first(where: { $0.email == searchInput || $0.phoneNumber == searchInput }) {
-                hapticFeedback(.success)
-                withAnimation {
-                    appState.currentUser = user
-                    appState.isAuthenticated = true
-                }
+                loginWithUser(user)
             } else {
                 hapticFeedback(.error)
                 withAnimation { errorMessage = "Incorrect email/phone or password." }
@@ -196,17 +193,43 @@ struct LoginView: View {
             let emailAddress = user.profile?.email ?? ""
             let givenName = user.profile?.givenName ?? "Google"
             let familyName = user.profile?.familyName ?? "User"
+            let profilePicUrl = user.profile?.imageURL(withDimension: 200)
             
-            
-            let newUser = AppUser(firstName: givenName, lastName: familyName, email: emailAddress, phoneNumber: "")
-            modelContext.insert(newUser)
-            loggedInUserId = newUser.id.uuidString
-            
-            withAnimation {
-                appState.currentUser = newUser
-                appState.isAuthenticated = true
+            // Check if user already exists
+            let descriptor = FetchDescriptor<AppUser>(predicate: #Predicate { $0.email == emailAddress })
+            if let existingUser = try? modelContext.fetch(descriptor).first {
+                // Update profile image if it was missing or new one available
+                if existingUser.profileImageData == nil, let url = profilePicUrl {
+                    downloadImage(from: url) { data in
+                        existingUser.profileImageData = data
+                        try? modelContext.save()
+                    }
+                }
+                loginWithUser(existingUser)
+            } else {
+                let newUser = AppUser(firstName: givenName, lastName: familyName, email: emailAddress, phoneNumber: "")
+                modelContext.insert(newUser)
+                
+                if let url = profilePicUrl {
+                    downloadImage(from: url) { data in
+                        newUser.profileImageData = data
+                        try? modelContext.save()
+                    }
+                } else {
+                    try? modelContext.save()
+                }
+                
+                loginWithUser(newUser)
             }
         }
+    }
+    
+    private func downloadImage(from url: URL, completion: @escaping (Data?) -> Void) {
+        URLSession.shared.dataTask(with: url) { data, _, _ in
+            DispatchQueue.main.async {
+                completion(data)
+            }
+        }.resume()
     }
     
     private func hapticFeedback(_ type: UINotificationFeedbackGenerator.FeedbackType) {

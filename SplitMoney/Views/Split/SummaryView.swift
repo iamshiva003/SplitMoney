@@ -6,6 +6,7 @@ struct SummaryView: View {
     let amount: Double
     let splitDetails: [PendingSplitDetail]
     let payerId: UUID
+    let splitType: SplitType
     let group: SplitGroup
     var editingExpense: Expense? = nil
     @Environment(AppState.self) var appState
@@ -139,7 +140,7 @@ struct SummaryView: View {
             // Update existing expense
             expense.title = title
             expense.amount = amount
-            expense.splitType = .equal // Logic can be refined
+            expense.splitType = splitType
             
             // In SwiftData, cascade delete rule on splitDetails relationship 
             // should handle cleanup if we replace the array
@@ -155,7 +156,7 @@ struct SummaryView: View {
             let newExpense = Expense(
                 title: title,
                 amount: amount,
-                splitType: .equal,
+                splitType: splitType,
                 splitDetails: finalDetails,
                 paidBy: actualPayer ?? appState.currentUser
             )

@@ -22,6 +22,7 @@ struct SplitMoneyView: View {
     
     @State private var showingSummary = false
     @State private var navPath = NavigationPath()
+    @FocusState private var isAmountFocused: Bool
     
     var body: some View {
         NavigationStack(path: $navPath) {
@@ -44,6 +45,7 @@ struct SplitMoneyView: View {
                                     .font(.system(size: 64, weight: .bold, design: .rounded))
                                     .multilineTextAlignment(.leading)
                                     .fixedSize()
+                                    .focused($isAmountFocused)
                             }
                             
                             TextField("What's this for?", text: $note)
@@ -127,7 +129,9 @@ struct SplitMoneyView: View {
                 VStack {
                     Button(action: {
                         hideKeyboard()
-                        prepareSummary()
+                        if validateAmounts() {
+                            prepareSummary()
+                        }
                     }) {
                         Text(editingExpense == nil ? "Review Split" : "Update Split")
                             .font(.system(size: 18, weight: .bold))
@@ -188,6 +192,11 @@ struct SplitMoneyView: View {
                     // By default, everyone participates and current user paid
                     participatingMembers = Set(group.members.map { $0.id })
                     selectedPayerId = appState.currentUser?.id
+                    
+                    // Auto-focus amount field for new splits
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                        isAmountFocused = true
+                    }
                 }
             }
             .navigationDestination(for: SplitSummaryData.self) { data in
@@ -196,6 +205,7 @@ struct SplitMoneyView: View {
                     amount: data.amount,
                     splitDetails: data.details,
                     payerId: data.payerId,
+                    splitType: data.splitType,
                     group: group,
                     editingExpense: editingExpense,
                     parentDismiss: { dismiss() }
@@ -226,8 +236,32 @@ struct SplitMoneyView: View {
         
         let title = note.isEmpty ? "Untitled Expense" : note
         let payerId = selectedPayerId ?? appState.currentUser?.id ?? group.members.first?.id ?? UUID()
-        let summaryData = SplitSummaryData(title: title, amount: totalAmount, details: tempDetails, payerId: payerId)
+        let splitType: SplitType = isEqualSplit ? .equal : .custom
+        let summaryData = SplitSummaryData(title: title, amount: totalAmount, details: tempDetails, payerId: payerId, splitType: splitType)
         self.navPath.append(summaryData)
+    }
+    
+    private func validateAmounts() -> Bool {
+        let cleanAmount = amountString.replacingOccurrences(of: ",", with: ".")
+        guard let totalAmount = Double(cleanAmount) else { return false }
+        
+        if !isEqualSplit {
+            var sum: Double = 0
+            for id in participatingMembers {
+                let cleanAmt = (customAmounts[id] ?? "0").replacingOccurrences(of: ",", with: ".")
+                sum += Double(cleanAmt) ?? 0
+            }
+            
+            // Allow for tiny rounding differences (0.01)
+            if abs(sum - totalAmount) > 0.02 {
+                hapticFeedback(.error)
+                // In a real app we might show an alert here
+                return false
+            }
+        }
+        
+        hapticFeedback(.success)
+        return true
     }
     
     private func toggleParticipation(for id: UUID) {
@@ -241,6 +275,11 @@ struct SplitMoneyView: View {
     private func hapticFeedback(_ style: UIImpactFeedbackGenerator.FeedbackStyle) {
         let generator = UIImpactFeedbackGenerator(style: style)
         generator.impactOccurred()
+    }
+    
+    private func hapticFeedback(_ type: UINotificationFeedbackGenerator.FeedbackType) {
+        let generator = UINotificationFeedbackGenerator()
+        generator.notificationOccurred(type)
     }
 }
 

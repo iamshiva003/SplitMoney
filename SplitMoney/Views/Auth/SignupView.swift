@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import PhotosUI
 
 struct SignupView: View {
     @Environment(\.dismiss) var dismiss
@@ -16,6 +17,10 @@ struct SignupView: View {
     @State private var showingSuccessAlert = false
     @AppStorage("loggedInUserId") private var loggedInUserId: String?
     
+    // Profile photo states
+    @State private var selectedPhotoItem: PhotosPickerItem? = nil
+    @State private var profileImage: UIImage? = nil
+    
     let countryCodes = [
         "🇺🇸 +1", "🇬🇧 +44", "🇮🇳 +91", "🇦🇺 +61", "🇯🇵 +81", "🇩🇪 +49", "🇫🇷 +33", "🇨🇳 +86"
     ]
@@ -24,6 +29,7 @@ struct SignupView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 24) {
+                // ── Header ──────────────────────────────────────────
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Create Account")
                         .font(.largeTitle)
@@ -35,17 +41,85 @@ struct SignupView: View {
                 .padding(.horizontal)
                 .padding(.top, 20)
                 
+                // ── Profile Photo Picker ─────────────────────────────
+                PhotosPicker(selection: $selectedPhotoItem,
+                             matching: .images,
+                             photoLibrary: .shared()) {
+                    ZStack(alignment: .bottomTrailing) {
+                        Group {
+                            if let img = profileImage {
+                                Image(uiImage: img)
+                                    .resizable()
+                                    .scaledToFill()
+                            } else {
+                                ZStack {
+                                    Circle()
+                                        .fill(Color.blue.opacity(0.1))
+                                    Image(systemName: "person.fill")
+                                        .resizable()
+                                        .scaledToFit()
+                                        .padding(24)
+                                        .foregroundColor(.blue)
+                                }
+                            }
+                        }
+                        .frame(width: 100, height: 100)
+                        .clipShape(Circle())
+                        .overlay(
+                            Circle()
+                                .stroke(Color.blue.opacity(0.25), lineWidth: 2)
+                        )
+                        .shadow(color: Color.blue.opacity(0.15), radius: 10, x: 0, y: 4)
+                        
+                        // Camera badge
+                        ZStack {
+                            Circle()
+                                .fill(Color.blue)
+                                .frame(width: 28, height: 28)
+                            Image(systemName: "camera.fill")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundColor(.white)
+                        }
+                        .offset(x: 4, y: 4)
+                    }
+                }
+                .onChange(of: selectedPhotoItem) { _, newItem in
+                    Task {
+                        if let data = try? await newItem?.loadTransferable(type: Data.self),
+                           let img = UIImage(data: data) {
+                            await MainActor.run { profileImage = img }
+                        }
+                    }
+                }
+                
+                VStack(spacing: 2) {
+                    Text(profileImage == nil ? "Add Profile Photo" : "Change Photo")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                        .foregroundColor(.blue)
+                    Text("Optional")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                }
+                
+                // ── Form Fields ──────────────────────────────────────
                 VStack(spacing: 16) {
                     HStack(spacing: 16) {
                         TextField("First Name", text: $firstName)
                             .padding()
                             .background(Color(.systemGray6))
                             .cornerRadius(12)
+                            .onChange(of: firstName) { _, new in
+                                if new.count > 20 { firstName = String(new.prefix(20)) }
+                            }
                         
                         TextField("Last Name", text: $lastName)
                             .padding()
                             .background(Color(.systemGray6))
                             .cornerRadius(12)
+                            .onChange(of: lastName) { _, new in
+                                if new.count > 20 { lastName = String(new.prefix(20)) }
+                            }
                     }
                     
                     HStack {
@@ -65,6 +139,11 @@ struct SignupView: View {
                             .padding()
                             .background(Color(.systemGray6))
                             .cornerRadius(12)
+                            .onChange(of: phoneNumber) { _, new in
+                                let digits = new.filter { $0.isNumber }
+                                let clamped = String(digits.prefix(10))
+                                if phoneNumber != clamped { phoneNumber = clamped }
+                            }
                     }
                     
                     TextField("Email", text: $email)
@@ -95,6 +174,7 @@ struct SignupView: View {
                 }
                 .padding(.horizontal)
                 
+                // ── Error ────────────────────────────────────────────
                 if let errorMessage = errorMessage {
                     Text(errorMessage)
                         .foregroundColor(.red)
@@ -103,21 +183,26 @@ struct SignupView: View {
                         .padding(.horizontal)
                 }
                 
-                Button(action: {
-                    signup()
-                }) {
+                // ── Sign Up Button ───────────────────────────────────
+                Button(action: signup) {
                     Text("Sign Up")
                         .font(.headline)
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(Color.blue)
-                        .cornerRadius(12)
+                        .background(
+                            LinearGradient(
+                                gradient: Gradient(colors: [Color.blue, Color.blue.opacity(0.8)]),
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .cornerRadius(16)
+                        .shadow(color: Color.blue.opacity(0.3), radius: 10, x: 0, y: 5)
                 }
                 .padding(.horizontal)
                 .padding(.top, 8)
-                
-                Spacer()
+                .padding(.bottom, 32)
             }
         }
         .navigationTitle("Sign Up")
@@ -126,13 +211,13 @@ struct SignupView: View {
             hideKeyboard()
         }
         .alert("Account Created", isPresented: $showingSuccessAlert) {
-            Button("OK") {
-                dismiss()
-            }
+            Button("OK") { dismiss() }
         } message: {
             Text("Your account has been created successfully. You will now be taken to the login page to sign in.")
         }
     }
+    
+    // MARK: - Helpers
     
     private func isValidEmail(_ email: String) -> Bool {
         let emailRegEx = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,64}"
@@ -158,12 +243,29 @@ struct SignupView: View {
         
         errorMessage = nil
         
-        let fullPhoneNumber = phoneNumber.isEmpty ? "" : "\(selectedCountryCode.components(separatedBy: " ").last ?? "") \(phoneNumber)"
+        let fullPhoneNumber = phoneNumber.isEmpty
+            ? ""
+            : "\(selectedCountryCode.components(separatedBy: " ").last ?? "") \(phoneNumber)"
         
-        let newUser = AppUser(firstName: firstName, lastName: lastName, email: email, phoneNumber: fullPhoneNumber, password: password)
+        // Compress profile image to JPEG before storing
+        let imageData = profileImage?.jpegData(compressionQuality: 0.75)
+        
+        let newUser = AppUser(
+            firstName: firstName,
+            lastName: lastName,
+            email: email,
+            phoneNumber: fullPhoneNumber,
+            password: password,
+            profileImageData: imageData
+        )
         modelContext.insert(newUser)
+        try? modelContext.save()
         
-        // Show success alert, which will then dismiss the view
-        showingSuccessAlert = true
+        // Auto-login after signup
+        loggedInUserId = newUser.id.uuidString
+        withAnimation {
+            appState.currentUser = newUser
+            appState.isAuthenticated = true
+        }
     }
 }

@@ -2,16 +2,6 @@ import SwiftUI
 import SwiftData
 import Contacts
 
-struct DeviceContact: Identifiable {
-    let id = UUID()
-    let firstName: String
-    let lastName: String
-    let phoneNumber: String
-    
-    var fullName: String {
-        return [firstName, lastName].filter { !$0.isEmpty }.joined(separator: " ")
-    }
-}
 
 struct HomeView: View {
     @Environment(AppState.self) var appState
@@ -20,7 +10,7 @@ struct HomeView: View {
     
     @State private var searchText = ""
     @State private var showingCreateGroup = false
-    @State private var showingLogoutConfirmation = false
+    @State private var showingProfile = false
     @State private var editMode: EditMode = .inactive
     @State private var selectedGroupIds = Set<UUID>()
     @State private var groupToRename: SplitGroup? = nil
@@ -78,38 +68,46 @@ struct HomeView: View {
                 VStack(spacing: 0) {
                     // Header Section
                     VStack(alignment: .leading, spacing: 16) {
-                        HStack {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("Hello,")
-                                    .font(.system(size: 16, weight: .medium))
-                                    .foregroundColor(.gray)
-                                Text(appState.currentUser?.firstName ?? "Friend")
-                                    .font(.system(size: 28, weight: .bold))
-                            }
-                            Spacer()
-                            
-                            Button(action: {
-                                 hapticFeedback(.light)
-                                 showingLogoutConfirmation = true
-                             }) {
-                                Image(systemName: "rectangle.portrait.and.arrow.right")
-                                    .font(.system(size: 20))
-                                    .foregroundColor(.gray)
-                                    .padding(10)
-                                    .background(Color(.systemGray6))
-                                    .clipShape(Circle())
-                            }
-                            .alert("Log Out", isPresented: $showingLogoutConfirmation) {
-                                Button("Cancel", role: .cancel) { }
-                                Button("Log Out", role: .destructive) {
-                                    withAnimation {
-                                        appState.isAuthenticated = false
-                                        loggedInUserId = nil
+                        HStack(spacing: 14) {
+                            // Tappable avatar → Profile
+                            Button {
+                                hapticFeedback(.light)
+                                showingProfile = true
+                            } label: {
+                                ZStack {
+                                    if let data = appState.currentUser?.profileImageData,
+                                       let img = UIImage(data: data) {
+                                        Image(uiImage: img)
+                                            .resizable()
+                                            .scaledToFill()
+                                            .frame(width: 44, height: 44)
+                                            .clipShape(Circle())
+                                            .overlay(Circle().stroke(Color.blue.opacity(0.25), lineWidth: 1.5))
+                                    } else {
+                                        ZStack {
+                                            Circle()
+                                                .fill(Color.blue.opacity(0.1))
+                                                .frame(width: 44, height: 44)
+                                            Text(String((appState.currentUser?.firstName.prefix(1) ?? "?")).uppercased())
+                                                .font(.system(size: 18, weight: .bold))
+                                                .foregroundColor(.blue)
+                                        }
                                     }
                                 }
-                            } message: {
-                                Text("Are you sure you want to log out? You'll need to sign in again to access your groups.")
                             }
+                            .navigationDestination(isPresented: $showingProfile) {
+                                ProfileView()
+                            }
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Hello,")
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundColor(.gray)
+                                Text(appState.currentUser?.firstName ?? "Friend")
+                                    .font(.system(size: 24, weight: .bold))
+                            }
+
+                            Spacer()
                         }
                         .padding(.horizontal)
                         
@@ -147,21 +145,6 @@ struct HomeView: View {
                             Text("Your Groups")
                                 .font(.system(size: 20, weight: .bold))
                             Spacer()
-                            Button(action: {
-                                hapticFeedback(.light)
-                                showingCreateGroup = true
-                            }) {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "plus.circle.fill")
-                                    Text("New Group")
-                                }
-                                .font(.system(size: 14, weight: .bold))
-                                .foregroundColor(.blue)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 6)
-                                .background(Color.blue.opacity(0.1))
-                                .clipShape(Capsule())
-                            }
                         }
                         .padding(.horizontal)
                         .padding(.bottom, 12)
@@ -229,10 +212,9 @@ struct HomeView: View {
                             .background(Color.clear)
                         }
                     }
-                }
-                .overlay(alignment: .bottom) {
-                    // Floating Search Bar at the bottom - ONLY on Home
-                    HStack(spacing: 12) {
+                    // ── Bottom bar: search + compact FAB ────────────
+                    HStack(spacing: 10) {
+                        // Search pill
                         HStack {
                             Image(systemName: "magnifyingglass")
                                 .foregroundColor(.secondary)
@@ -241,9 +223,7 @@ struct HomeView: View {
                                 .focused($isSearchFocused)
                             
                             if !searchText.isEmpty {
-                                Button(action: {
-                                    searchText = ""
-                                }) {
+                                Button(action: { searchText = "" }) {
                                     Image(systemName: "xmark.circle.fill")
                                         .foregroundColor(.secondary)
                                 }
@@ -257,8 +237,9 @@ struct HomeView: View {
                             Capsule()
                                 .stroke(Color.primary.opacity(0.05), lineWidth: 0.5)
                         )
-                        
+
                         if isSearchFocused || !searchText.isEmpty {
+                            // Cancel button replaces FAB during search
                             Button("Cancel") {
                                 withAnimation {
                                     searchText = ""
@@ -267,13 +248,39 @@ struct HomeView: View {
                             }
                             .foregroundColor(.blue)
                             .transition(.move(edge: .trailing).combined(with: .opacity))
+                        } else {
+                            // Compact circular FAB
+                            Button(action: {
+                                hapticFeedback(.light)
+                                showingCreateGroup = true
+                            }) {
+                                ZStack {
+                                    Circle()
+                                        .fill(
+                                            LinearGradient(
+                                                gradient: Gradient(colors: [Color.blue, Color.blue.opacity(0.8)]),
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                            )
+                                        )
+                                        .frame(width: 46, height: 46)
+                                        .shadow(color: Color.blue.opacity(0.35), radius: 8, x: 0, y: 4)
+                                    Image(systemName: "plus")
+                                        .font(.system(size: 18, weight: .bold))
+                                        .foregroundColor(.white)
+                                }
+                            }
+                            .transition(.scale.combined(with: .opacity))
                         }
                     }
                     .padding(.horizontal, 20)
-                    .padding(.bottom, 24)
+                    .padding(.bottom, 12)
                     .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 6)
+                    .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isSearchFocused)
+                    .animation(.spring(response: 0.3, dampingFraction: 0.7), value: searchText.isEmpty)
+
                 }
-            .sheet(isPresented: $showingCreateGroup) {
+                .sheet(isPresented: $showingCreateGroup) {
                     CreateGroupView()
                 }
                 .alert("Rename Group", isPresented: $showingRenameAlert) {
@@ -282,24 +289,14 @@ struct HomeView: View {
                     Button("Save") {
                         if let group = groupToRename, !newGroupName.isEmpty {
                             hapticFeedback(.success)
-                            group.name = newGroupName
+                            group.name = String(newGroupName.prefix(25))
                             try? modelContext.save()
                         }
                     }
                 } message: {
                     Text("Enter a new name for '\(groupToRename?.name ?? "this group")'")
                 }
-                .alert("Log Out", isPresented: $showingLogoutConfirmation) {
-                    Button("Cancel", role: .cancel) { }
-                    Button("Log Out", role: .destructive) {
-                        withAnimation {
-                            appState.isAuthenticated = false
-                            loggedInUserId = nil
-                        }
-                    }
-                } message: {
-                    Text("Are you sure you want to log out? You'll need to sign in again to access your groups.")
-                }
+
             }
             .environment(\.editMode, $editMode)
         }
@@ -325,136 +322,6 @@ struct HomeView: View {
     }
 }
 
-struct CreateGroupView: View {
-    @Environment(\.dismiss) var dismiss
-    @Environment(\.modelContext) private var modelContext
-    @Environment(AppState.self) var appState
-    
-    @State private var groupName = ""
-    @State private var selectedCurrency = "🇮🇳 ₹ INR"
-    @State private var selectedContacts: Set<UUID> = []
-    @State private var deviceContacts: [DeviceContact] = []
-    @State private var hasFetchedContacts = false
-    
-    let currencies = [
-        "🇮🇳 ₹ INR", "🇺🇸 $ USD", "🇬🇧 £ GBP", "🇦🇺 A$ AUD", "🇯🇵 ¥ JPY", "🇪🇺 € EUR", "🇨🇳 ¥ CNY"
-    ]
-    
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section(header: Text("Group Details")) {
-                    TextField("Group Name", text: $groupName)
-                    Picker("Currency", selection: $selectedCurrency) {
-                        ForEach(currencies, id: \.self) { currency in
-                            Text(currency).tag(currency)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                }
-                
-                if hasFetchedContacts {
-                    Section(header: Text("Select Members")) {
-                        ForEach(deviceContacts) { contact in
-                            HStack {
-                                Text(contact.fullName)
-                                Spacer()
-                                if selectedContacts.contains(contact.id) {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundColor(.blue)
-                                } else {
-                                    Image(systemName: "circle")
-                                        .foregroundColor(.gray)
-                                }
-                            }
-                            .padding(.vertical, 4)
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                if selectedContacts.contains(contact.id) {
-                                    selectedContacts.remove(contact.id)
-                                } else {
-                                    selectedContacts.insert(contact.id)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            .navigationTitle("New Group")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") { dismiss() }
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Create") {
-                        createGroup()
-                    }
-                    .disabled(groupName.isEmpty)
-                }
-            }
-            .onAppear {
-                if !hasFetchedContacts {
-                    fetchContacts()
-                }
-            }
-            .onTapGesture {
-                hideKeyboard()
-            }
-        }
-    }
-    
-    private func fetchContacts() {
-        let store = CNContactStore()
-        store.requestAccess(for: .contacts) { granted, error in
-            if granted {
-                let keys = [CNContactGivenNameKey, CNContactFamilyNameKey, CNContactPhoneNumbersKey] as [CNKeyDescriptor]
-                let request = CNContactFetchRequest(keysToFetch: keys)
-                
-                var contacts: [DeviceContact] = []
-                do {
-                    try store.enumerateContacts(with: request) { contact, stop in
-                        let firstName = contact.givenName
-                        let lastName = contact.familyName
-                        let phoneNumber = contact.phoneNumbers.first?.value.stringValue ?? ""
-                        
-                        if !firstName.isEmpty || !lastName.isEmpty {
-                            let deviceContact = DeviceContact(firstName: firstName, lastName: lastName, phoneNumber: phoneNumber)
-                            contacts.append(deviceContact)
-                        }
-                    }
-                    DispatchQueue.main.async {
-                        self.deviceContacts = contacts
-                        self.hasFetchedContacts = true
-                    }
-                } catch {
-                    print("Error fetching contacts: \(error)")
-                }
-            } else {
-                print("Access denied")
-            }
-        }
-    }
-    
-    private func createGroup() {
-        var members: [AppUser] = []
-        if let current = appState.currentUser {
-            members.append(current)
-        }
-        
-        let selectedDeviceContacts = deviceContacts.filter { selectedContacts.contains($0.id) }
-        for deviceContact in selectedDeviceContacts {
-            let newUser = AppUser(firstName: deviceContact.firstName, lastName: deviceContact.lastName, email: "", phoneNumber: deviceContact.phoneNumber, password: "")
-            modelContext.insert(newUser)
-            members.append(newUser)
-        }
-        
-        let newGroup = SplitGroup(name: groupName, currency: selectedCurrency, members: members)
-        modelContext.insert(newGroup)
-        try? modelContext.save()
-        dismiss()
-    }
-}
 
 #Preview {
     HomeView()
@@ -462,31 +329,80 @@ struct CreateGroupView: View {
 }
 
 struct GroupRowView: View {
+    @Environment(AppState.self) var appState
     let group: SplitGroup
     let editMode: EditMode
     let onRename: () -> Void
     
+    private var groupBalance: Double {
+        guard let currentUser = appState.currentUser else { return 0 }
+        var balance: Double = 0
+        for expense in group.expenses {
+            let currentUserShare = expense.splitDetails.first(where: { $0.user?.id == currentUser.id })?.amount ?? 0
+            if let paidBy = expense.paidBy {
+                if paidBy.id == currentUser.id {
+                    balance += (expense.amount - currentUserShare)
+                } else {
+                    balance -= currentUserShare
+                }
+            }
+        }
+        return balance
+    }
+    
     var body: some View {
         HStack(spacing: 16) {
             ZStack {
-                Circle()
-                    .fill(LinearGradient(gradient: Gradient(colors: [Color.blue.opacity(0.2), Color.blue.opacity(0.1)]), startPoint: .topLeading, endPoint: .bottomTrailing))
-                    .frame(width: 54, height: 54)
-                
-                Text(String(group.name.prefix(1)).uppercased())
-                    .font(.system(size: 20, weight: .bold))
-                    .foregroundColor(.blue)
+                if let data = group.imageData, let img = UIImage(data: data) {
+                    Image(uiImage: img)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 54, height: 54)
+                        .clipShape(Circle())
+                        .overlay(Circle().stroke(Color.blue.opacity(0.15), lineWidth: 1))
+                } else {
+                    Circle()
+                        .fill(LinearGradient(gradient: Gradient(colors: [Color.blue.opacity(0.2), Color.blue.opacity(0.1)]), startPoint: .topLeading, endPoint: .bottomTrailing))
+                        .frame(width: 54, height: 54)
+                    Text(String(group.name.prefix(1)).uppercased())
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundColor(.blue)
+                }
             }
             
             VStack(alignment: .leading, spacing: 4) {
                 Text(group.name)
                     .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(.primary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
                 Text("\(group.members.count) members")
-                    .font(.system(size: 14))
-                    .foregroundColor(.gray)
+                    .font(.system(size: 13))
+                    .foregroundColor(.secondary)
             }
             
             Spacer()
+            
+            VStack(alignment: .trailing, spacing: 4) {
+                if abs(groupBalance) > 0.01 {
+                    Text(groupBalance > 0 ? "You get" : "You owe")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(.secondary)
+                        .textCase(.uppercase)
+                    
+                    Text("\(group.currencySymbol)\(String(format: "%.0f", abs(groupBalance)))")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(groupBalance > 0 ? .green : .red)
+                } else {
+                    Text("Settled")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.gray.opacity(0.6))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color(.systemGray6))
+                        .clipShape(Capsule())
+                }
+            }
         }
         .padding(.vertical, 4)
         .contentShape(Rectangle())
