@@ -119,38 +119,38 @@ struct SplitMoneyView: View {
                             .padding(.horizontal)
                         }
                         
-                        Spacer()
-                            .frame(height: 100)
+                        Spacer().frame(height: 20)
                     }
                 }
                 .background(Color(.systemGroupedBackground))
-                
-                // Bottom Button
-                VStack {
-                    Button(action: {
-                        hideKeyboard()
-                        if validateAmounts() {
-                            prepareSummary()
+                .safeAreaInset(edge: .bottom) {
+                    VStack {
+                        Button(action: {
+                            hideKeyboard()
+                            if validateAmounts() {
+                                prepareSummary()
+                            }
+                        }) {
+                            Text(editingExpense == nil ? "Review Split" : "Update Split")
+                                .font(.system(size: 18, weight: .bold))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 18)
+                                .background(
+                                    LinearGradient(gradient: Gradient(colors: [Color.blue, Color.blue.opacity(0.8)]), startPoint: .topLeading, endPoint: .bottomTrailing)
+                                )
+                                .cornerRadius(16)
+                                .shadow(color: Color.blue.opacity(0.3), radius: 10, x: 0, y: 5)
                         }
-                    }) {
-                        Text(editingExpense == nil ? "Review Split" : "Update Split")
-                            .font(.system(size: 18, weight: .bold))
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 18)
-                            .background(
-                                LinearGradient(gradient: Gradient(colors: [Color.blue, Color.blue.opacity(0.8)]), startPoint: .topLeading, endPoint: .bottomTrailing)
-                            )
-                            .cornerRadius(16)
-                            .shadow(color: Color.blue.opacity(0.3), radius: 10, x: 0, y: 5)
+                        .disabled(amountString.isEmpty || participatingMembers.isEmpty)
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 16)
+                        .background(
+                            VisualBlurView(style: .systemThinMaterial)
+                                .mask(LinearGradient(gradient: Gradient(colors: [.clear, .black, .black]), startPoint: .top, endPoint: .bottom))
+                                .ignoresSafeArea()
+                        )
                     }
-                    .disabled(amountString.isEmpty || participatingMembers.isEmpty)
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 20)
-                    .background(
-                        VisualBlurView(style: .systemThinMaterial)
-                            .mask(LinearGradient(gradient: Gradient(colors: [.clear, .black, .black]), startPoint: .top, endPoint: .bottom))
-                    )
                 }
             }
             .navigationTitle(editingExpense == nil ? "Add Split" : "Edit Split")
@@ -326,15 +326,20 @@ struct MemberSplitCard: View {
     var body: some View {
         HStack(spacing: 16) {
             Button(action: onToggle) {
-                Image(systemName: isParticipating ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 24))
-                    .foregroundColor(isParticipating ? .blue : .gray)
+                HStack(spacing: 16) {
+                    Image(systemName: isParticipating ? "checkmark.circle.fill" : "circle")
+                        .font(.system(size: 24))
+                        .foregroundColor(isParticipating ? .blue : .gray)
+                    
+                    Text(member.firstName)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.primary)
+                    
+                    Spacer()
+                }
+                .contentShape(Rectangle())
             }
-            
-            Text(member.firstName)
-                .font(.system(size: 16, weight: .medium))
-            
-            Spacer()
+            .buttonStyle(.plain)
             
             if isParticipating {
                 if isEqualSplit {

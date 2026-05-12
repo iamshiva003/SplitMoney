@@ -13,96 +13,101 @@ struct LoginView: View {
     
     var body: some View {
         NavigationStack {
-            VStack(spacing: 24) {
-                Spacer()
-                
-                // Logo or Title
-                VStack(spacing: 8) {
-                    Image(systemName: "dollarsign.arrow.circlepath")
-                        .font(.system(size: 60, weight: .bold))
-                        .foregroundStyle(Color.blue)
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 24) {
+                    Spacer()
+                        .frame(height: 60)
                     
-                    Text("Money Split")
-                        .font(.largeTitle)
-                        .fontWeight(.heavy)
-                }
-                .padding(.bottom, 20)
-                
-                // Fields
-                VStack(spacing: 16) {
-                    TextField("Email or Phone Number", text: $loginInput)
-                        .keyboardType(.default)
-                        .textInputAutocapitalization(.never)
-                        .padding()
-                        .background(Color(.systemGray6))
-                        .cornerRadius(12)
-                    
-                    SecureField("Password", text: $password)
-                        .padding()
-                        .background(Color(.systemGray6))
-                        .cornerRadius(12)
-                }
-                .padding(.horizontal)
-                
-                // Buttons
-                VStack(spacing: 16) {
-                    if let errorMessage = errorMessage {
-                        Text(errorMessage)
-                            .foregroundColor(.red)
-                            .font(.subheadline)
-                            .multilineTextAlignment(.center)
+                    // Logo or Title
+                    VStack(spacing: 8) {
+                        Image(systemName: "dollarsign.arrow.circlepath")
+                            .font(.system(size: 60, weight: .bold))
+                            .foregroundStyle(Color.blue)
+                        
+                        Text("Money Split")
+                            .font(.largeTitle)
+                            .fontWeight(.heavy)
                     }
+                    .padding(.bottom, 20)
                     
-                    Button(action: {
-                        hideKeyboard()
-                        login()
-                    }) {
-                        Text("Sign In")
-                            .font(.headline)
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
+                    // Fields
+                    VStack(spacing: 16) {
+                        TextField("Email or Phone Number", text: $loginInput)
+                            .keyboardType(.default)
+                            .textInputAutocapitalization(.never)
                             .padding()
-                            .background(Color.blue)
+                            .background(Color(.systemGray6))
                             .cornerRadius(12)
-                    }
-                    
-                    HStack {
-                        VStack { Divider() }
-                        Text("OR").font(.subheadline).foregroundColor(.gray)
-                        VStack { Divider() }
+                        
+                        SecureField("Password", text: $password)
+                            .padding()
+                            .background(Color(.systemGray6))
+                            .cornerRadius(12)
                     }
                     .padding(.horizontal)
                     
-                    Button(action: {
-                        handleGoogleSignIn()
-                    }) {
-                        HStack {
-                            Image(systemName: "g.circle.fill")
-                                .font(.title3)
-                            Text("Sign In with Google")
-                                .font(.headline)
+                    // Buttons
+                    VStack(spacing: 16) {
+                        if let errorMessage = errorMessage {
+                            Text(errorMessage)
+                                .foregroundColor(.red)
+                                .font(.subheadline)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal)
                         }
-                        .foregroundColor(.primary)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color(.systemGray6))
-                        .cornerRadius(12)
+                        
+                        Button(action: {
+                            hideKeyboard()
+                            login()
+                        }) {
+                            Text("Sign In")
+                                .font(.headline)
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding()
+                                .background(Color.blue)
+                                .cornerRadius(12)
+                        }
+                        
+                        HStack {
+                            VStack { Divider() }
+                            Text("OR").font(.subheadline).foregroundColor(.gray)
+                            VStack { Divider() }
+                        }
+                        .padding(.horizontal)
+                        
+                        Button(action: {
+                            handleGoogleSignIn()
+                        }) {
+                            HStack {
+                                Image(systemName: "g.circle.fill")
+                                    .font(.title3)
+                                Text("Sign In with Google")
+                                    .font(.headline)
+                            }
+                            .foregroundColor(.primary)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color(.systemGray6))
+                            .cornerRadius(12)
+                        }
                     }
-                }
-                .padding(.horizontal)
-                
-                Spacer()
-                
-                NavigationLink(destination: SignupView()) {
-                    HStack(spacing: 4) {
-                        Text("Don't have an account?")
-                            .foregroundColor(.gray)
-                        Text("Sign Up")
-                            .fontWeight(.bold)
-                            .foregroundColor(.blue)
+                    .padding(.horizontal)
+                    
+                    Spacer()
+                        .frame(height: 40)
+                    
+                    NavigationLink(destination: SignupView()) {
+                        HStack(spacing: 4) {
+                            Text("Don't have an account?")
+                                .foregroundColor(.gray)
+                            Text("Sign Up")
+                                .fontWeight(.bold)
+                                .foregroundColor(.blue)
+                        }
                     }
+                    .padding(.bottom, 20)
                 }
-                .padding(.bottom)
             }
             .navigationBarHidden(true)
             .onTapGesture {

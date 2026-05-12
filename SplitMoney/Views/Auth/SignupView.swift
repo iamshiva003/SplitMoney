@@ -202,7 +202,8 @@ struct SignupView: View {
                 }
                 .padding(.horizontal)
                 .padding(.top, 8)
-                .padding(.bottom, 32)
+                
+                Spacer().frame(height: 100)
             }
         }
         .navigationTitle("Sign Up")

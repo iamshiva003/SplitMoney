@@ -285,7 +285,7 @@ struct CreateGroupView: View {
                         }
                     }
 
-                    Spacer().frame(height: 16)
+                    Spacer().frame(height: 100)
                 }
             }
             .background(Color(.systemGroupedBackground))
