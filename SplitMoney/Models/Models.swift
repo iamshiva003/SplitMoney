@@ -64,11 +64,14 @@ class Expense {
     var title: String
     var amount: Double
     var date: Date
-    var splitType: SplitType
+    var splitType: SplitType = SplitType.equal
     @Relationship(deleteRule: .cascade) var splitDetails: [SplitDetail]
     var paidBy: AppUser?
+    var isSettlement: Bool = false
+    var isFullSettlement: Bool = false
+    var relatedExpenseId: UUID?
     
-    init(id: UUID = UUID(), title: String, amount: Double, date: Date = Date(), splitType: SplitType = .equal, splitDetails: [SplitDetail] = [], paidBy: AppUser? = nil) {
+    init(id: UUID = UUID(), title: String, amount: Double, date: Date = Date(), splitType: SplitType = .equal, splitDetails: [SplitDetail] = [], paidBy: AppUser? = nil, isSettlement: Bool = false, isFullSettlement: Bool = false, relatedExpenseId: UUID? = nil) {
         self.id = id
         self.title = title
         self.amount = amount
@@ -76,6 +79,9 @@ class Expense {
         self.splitType = splitType
         self.splitDetails = splitDetails
         self.paidBy = paidBy
+        self.isSettlement = isSettlement
+        self.isFullSettlement = isFullSettlement
+        self.relatedExpenseId = relatedExpenseId
     }
 }
 
