@@ -38,7 +38,8 @@ struct ProfileView: View {
     private var user: AppUser? { appState.currentUser }
 
     var body: some View {
-        ScrollView {
+        NavigationStack {
+            ScrollView {
             VStack(spacing: 28) {
 
                 // ── Avatar ───────────────────────────────────────
@@ -248,27 +249,6 @@ struct ProfileView: View {
                         .padding(.horizontal)
                 }
 
-                // ── Save button (edit mode only) ──────────────────
-                if isEditing {
-                    Button(action: saveChanges) {
-                        Text("Save Changes")
-                            .font(.headline)
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding()
-                            .background(
-                                LinearGradient(
-                                    gradient: Gradient(colors: [Color.blue, Color.blue.opacity(0.8)]),
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .cornerRadius(16)
-                            .shadow(color: Color.blue.opacity(0.3), radius: 10, x: 0, y: 5)
-                    }
-                    .padding(.horizontal)
-                    .padding(.bottom, 8)
-                }
 
                 // ── Log Out button (always visible) ──────────────
                 Button(action: { showingLogoutConfirmation = true }) {
@@ -292,26 +272,39 @@ struct ProfileView: View {
                     .shadow(color: Color.red.opacity(0.3), radius: 10, x: 0, y: 5)
                 }
                 .padding(.horizontal)
-                .padding(.bottom, 32)
-
+                
+                Spacer().frame(height: 100)
             }
         }
         .background(Color(.systemGroupedBackground).ignoresSafeArea())
         .navigationTitle("My Profile")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button(isEditing ? "Cancel" : "Edit") {
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
                     if isEditing {
-                        // Discard — reload from model
-                        loadFromUser()
+                        Button("Cancel") {
+                            loadFromUser()
+                            withAnimation { isEditing = false }
+                        }
+                    } else {
+                        Button("Done") { dismiss() }
                     }
-                    withAnimation { isEditing.toggle() }
                 }
-                .fontWeight(isEditing ? .regular : .semibold)
-                .foregroundColor(.blue)
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    if isEditing {
+                        Button("Save") {
+                            saveChanges()
+                        }
+                        .fontWeight(.bold)
+                    } else {
+                        Button("Edit") {
+                            withAnimation { isEditing = true }
+                        }
+                        .fontWeight(.semibold)
+                    }
+                }
             }
-        }
         .onAppear { loadFromUser() }
         .onTapGesture { hideKeyboard() }
         .alert("Profile Updated", isPresented: $showingSuccess) {
@@ -329,6 +322,7 @@ struct ProfileView: View {
             }
         } message: {
             Text("Are you sure you want to log out? You'll need to sign in again to access your groups.")
+        }
         }
     }
 

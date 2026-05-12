@@ -235,7 +235,7 @@ struct GroupProfileView: View {
                         .padding(.horizontal)
                     }
 
-                    Spacer().frame(height: 20)
+                    Spacer().frame(height: 100)
                 }
             }
             .background(Color(.systemGroupedBackground))

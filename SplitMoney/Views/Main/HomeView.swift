@@ -62,12 +62,48 @@ struct HomeView: View {
         return balance
     }
     
+    var totalToGet: Double {
+        guard let currentUser = appState.currentUser else { return 0 }
+        var total: Double = 0
+        for group in userGroups {
+            var groupBal: Double = 0
+            for expense in group.expenses {
+                let share = expense.splitDetails.first(where: { $0.user?.id == currentUser.id })?.amount ?? 0
+                if expense.paidBy?.id == currentUser.id {
+                    groupBal += (expense.amount - share)
+                } else {
+                    groupBal -= share
+                }
+            }
+            if groupBal > 0 { total += groupBal }
+        }
+        return total
+    }
+
+    var totalToOwe: Double {
+        guard let currentUser = appState.currentUser else { return 0 }
+        var total: Double = 0
+        for group in userGroups {
+            var groupBal: Double = 0
+            for expense in group.expenses {
+                let share = expense.splitDetails.first(where: { $0.user?.id == currentUser.id })?.amount ?? 0
+                if expense.paidBy?.id == currentUser.id {
+                    groupBal += (expense.amount - share)
+                } else {
+                    groupBal -= share
+                }
+            }
+            if groupBal < 0 { total += abs(groupBal) }
+        }
+        return total
+    }
+    
     var body: some View {
         ZStack {
             NavigationStack {
                 VStack(spacing: 0) {
                     // Header Section
-                    VStack(alignment: .leading, spacing: 16) {
+                    VStack(alignment: .leading, spacing: 20) {
                         HStack(spacing: 14) {
                             // Tappable avatar → Profile
                             Button {
@@ -95,7 +131,7 @@ struct HomeView: View {
                                     }
                                 }
                             }
-                            .navigationDestination(isPresented: $showingProfile) {
+                            .sheet(isPresented: $showingProfile) {
                                 ProfileView()
                             }
 
@@ -111,32 +147,78 @@ struct HomeView: View {
                         }
                         .padding(.horizontal)
                         
-                        // Summary Card
-                        HStack(spacing: 20) {
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("Total Balance")
-                                    .font(.system(size: 14))
-                                    .foregroundColor(.white.opacity(0.8))
-                                Text("₹\(String(format: "%.2f", totalBalance))")
-                                    .font(.system(size: 24, weight: .bold))
-                                    .foregroundColor(.white)
-                                    .contentTransition(.numericText())
+                        // Compact Theme-Responsive Dashboard
+                        VStack(spacing: 12) {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("OVERALL BALANCE")
+                                        .font(.system(size: 10, weight: .bold))
+                                        .kerning(1)
+                                        .foregroundColor(.secondary)
+                                    
+                                    HStack(alignment: .firstTextBaseline, spacing: 2) {
+                                        Text("₹")
+                                            .font(.system(size: 18, weight: .semibold))
+                                            .foregroundColor(.primary)
+                                        Text(String(format: "%.2f", totalBalance))
+                                            .font(.system(size: 32, weight: .bold, design: .rounded))
+                                            .foregroundColor(.primary)
+                                    }
+                                }
+                                Spacer()
+                                
+                                // Compact Status Badge
+                                let statusText: String = {
+                                    if totalBalance > 0 { return "YOU ARE OWED" }
+                                    else if totalBalance < 0 { return "YOU OWE" }
+                                    else { return "SETTLED" }
+                                }()
+                                
+                                Text(statusText)
+                                    .font(.system(size: 9, weight: .heavy))
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(totalBalance > 0 ? Color.green.opacity(0.15) : (totalBalance < 0 ? Color.red.opacity(0.15) : Color.gray.opacity(0.15)))
+                                    .clipShape(Capsule())
+                                    .foregroundColor(totalBalance > 0 ? .green : (totalBalance < 0 ? .red : .gray))
                             }
-                            Spacer()
-                            Image(systemName: totalBalance >= 0 ? "arrow.up.right.circle.fill" : "arrow.down.left.circle.fill")
-                                .font(.system(size: 30))
-                                .foregroundColor(.white.opacity(0.5))
+                            
+                            Divider()
+                            
+                            HStack(spacing: 0) {
+                                // You get
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("You get")
+                                        .font(.system(size: 11))
+                                        .foregroundColor(.secondary)
+                                    Text("₹\(String(format: "%.0f", totalToGet))")
+                                        .font(.system(size: 16, weight: .bold))
+                                        .foregroundColor(.green)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                
+                                // You owe
+                                VStack(alignment: .trailing, spacing: 2) {
+                                    Text("You owe")
+                                        .font(.system(size: 11))
+                                        .foregroundColor(.secondary)
+                                    Text("₹\(String(format: "%.0f", totalToOwe))")
+                                        .font(.system(size: 16, weight: .bold))
+                                        .foregroundColor(.red)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .trailing)
+                            }
                         }
-                        .padding(24)
+                        .padding(20)
                         .background(
-                            LinearGradient(gradient: Gradient(colors: [totalBalance >= 0 ? Color.blue : Color.red, totalBalance >= 0 ? Color.blue.opacity(0.7) : Color.red.opacity(0.7)]), startPoint: .topLeading, endPoint: .bottomTrailing)
+                            RoundedRectangle(cornerRadius: 24)
+                                .fill(Color(.secondarySystemGroupedBackground))
+                                .shadow(color: Color.black.opacity(0.05), radius: 10, x: 0, y: 5)
                         )
-                        .cornerRadius(24)
                         .padding(.horizontal)
-                        .shadow(color: (totalBalance >= 0 ? Color.blue : Color.red).opacity(0.3), radius: 15, x: 0, y: 10)
                     }
-                    .padding(.top, 20)
-                    .padding(.bottom, 10)
+                    .padding(.top, 16)
+                    .padding(.bottom, 16)
 
                     
                     // Groups List
