@@ -46,3 +46,4 @@ struct ContentView: View {
     ContentView()
         .environment(AppState())
 }
+
