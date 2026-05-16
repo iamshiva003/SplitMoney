@@ -134,25 +134,6 @@ struct SettleUpView: View {
         let payer = isUserPaying ? currentUser : otherUser
         let receiver = isUserPaying ? otherUser : currentUser
         
-        // Find the most recent relevant expense to link as a reply context
-        let relatedExpenseId = group.expenses
-            .filter { exp in
-                if !exp.isSettlement {
-                    if isUserPaying {
-                        // Current user is paying: link to last expense where they owed this receiver
-                        return exp.paidBy?.id == receiver.id && 
-                               exp.splitDetails.contains(where: { $0.user?.id == payer.id })
-                    } else {
-                        // Other user is paying: link to last expense where they owed the current user
-                        return exp.paidBy?.id == payer.id && 
-                               exp.splitDetails.contains(where: { $0.user?.id == receiver.id })
-                    }
-                }
-                return false
-            }
-            .sorted(by: { $0.date > $1.date })
-            .first?.id
-        
         let settlement = Expense(
             title: isUserPaying ? "Payment to \(receiver.firstName)" : "Payment from \(payer.firstName)",
             amount: absAmount,
@@ -164,7 +145,7 @@ struct SettleUpView: View {
             paidBy: payer,
             isSettlement: true,
             isFullSettlement: true,
-            relatedExpenseId: relatedExpenseId
+            relatedExpenseId: nil
         )
         
         group.expenses.append(settlement)

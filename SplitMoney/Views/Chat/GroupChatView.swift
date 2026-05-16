@@ -74,57 +74,37 @@ struct GroupChatView: View {
     }
     
     private var membersHeader: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text("Members")
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundColor(.primary)
-                
-                Text("\(group.members.count)")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundColor(.blue)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(Color.blue.opacity(0.1))
-                    .clipShape(Capsule())
-                
-                Spacer()
-            }
-            .padding(.horizontal)
-            .padding(.top, 14)
-
+        HStack(spacing: 12) {
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 18) {
+                HStack(spacing: 8) {
                     ForEach(group.members) { member in
-                        VStack(spacing: 6) {
-                            if let data = member.profileImageData, let img = UIImage(data: data) {
-                                Image(uiImage: img)
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(width: 46, height: 46)
-                                    .clipShape(Circle())
-                                    .overlay(Circle().stroke(Color.blue.opacity(0.1), lineWidth: 1))
-                            } else {
-                                Circle()
-                                    .fill(LinearGradient(gradient: Gradient(colors: [Color.blue.opacity(0.15), Color.blue.opacity(0.05)]), startPoint: .topLeading, endPoint: .bottomTrailing))
-                                    .frame(width: 46, height: 46)
-                                    .overlay(
-                                        Text(String(member.firstName.prefix(1)).uppercased())
-                                            .font(.system(size: 17, weight: .bold))
-                                            .foregroundColor(.blue)
-                                    )
-                            }
-                            
-                            Text(member.firstName)
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundColor(.secondary)
-                        }
+                        memberAvatar(member: member)
                     }
                 }
-                .padding(.horizontal)
-                .padding(.bottom, 14)
+            }
+            
+            if group.members.count > 5 {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundColor(Color(.systemGray3))
+                    .padding(.leading, 2)
+            }
+            
+            Spacer()
+            
+            Button(action: {
+                showingAddMembers = true
+            }) {
+                Image(systemName: "person.badge.plus")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.blue)
+                    .padding(8)
+                    .background(Color.blue.opacity(0.1))
+                    .clipShape(Circle())
             }
         }
+        .padding(.horizontal)
+        .padding(.vertical, 10)
         .background(Color(.systemBackground))
         .overlay(
             VStack {
@@ -132,6 +112,26 @@ struct GroupChatView: View {
                 Divider()
             }
         )
+    }
+    
+    @ViewBuilder
+    private func memberAvatar(member: AppUser) -> some View {
+        if let data = member.profileImageData, let img = UIImage(data: data) {
+            Image(uiImage: img)
+                .resizable()
+                .scaledToFill()
+                .frame(width: 32, height: 32)
+                .clipShape(Circle())
+        } else {
+            Circle()
+                .fill(LinearGradient(gradient: Gradient(colors: [Color.blue.opacity(0.15), Color.blue.opacity(0.05)]), startPoint: .topLeading, endPoint: .bottomTrailing))
+                .frame(width: 32, height: 32)
+                .overlay(
+                    Text(String(member.firstName.prefix(1)).uppercased())
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(.blue)
+                )
+        }
     }
     
     @ViewBuilder
@@ -214,13 +214,28 @@ struct GroupChatView: View {
     
     @ViewBuilder
     private var actionButtons: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 16) {
             settleButton
+            Divider()
+                .frame(height: 20)
             scanButton
+            Divider()
+                .frame(height: 20)
             splitButton
         }
-        .padding(.trailing, 16)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+        .background(
+            VisualBlurView(style: .systemChromeMaterial)
+                .clipShape(Capsule())
+        )
+        .overlay(
+            Capsule()
+                .stroke(Color.secondary.opacity(0.3), lineWidth: 0.5)
+        )
+        .shadow(color: Color.black.opacity(0.15), radius: 15, x: 0, y: 8)
         .padding(.bottom, 24)
+        .frame(maxWidth: .infinity, alignment: .center)
     }
     
     @ViewBuilder
@@ -231,18 +246,12 @@ struct GroupChatView: View {
         }) {
             HStack(spacing: 6) {
                 Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 14, weight: .bold))
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(.green)
                 Text("Settle")
-                    .font(.system(size: 13, weight: .bold))
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.primary)
             }
-            .foregroundColor(.white)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .background(
-                LinearGradient(gradient: Gradient(colors: [Color.orange, Color.orange.opacity(0.8)]), startPoint: .topLeading, endPoint: .bottomTrailing)
-            )
-            .clipShape(Capsule())
-            .shadow(color: Color.orange.opacity(0.3), radius: 8, x: 0, y: 4)
         }
     }
     
@@ -252,22 +261,16 @@ struct GroupChatView: View {
             HStack(spacing: 6) {
                 if appState.isProcessingOCR {
                     ProgressView()
-                        .tint(.white)
+                        .tint(.primary)
                 } else {
-                    Image(systemName: "doc.text.viewfinder")
-                        .font(.system(size: 14, weight: .bold))
+                    Image(systemName: "doc.viewfinder.fill")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundColor(.purple)
                 }
                 Text("Scan")
-                    .font(.system(size: 13, weight: .bold))
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.primary)
             }
-            .foregroundColor(.white)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .background(
-                LinearGradient(gradient: Gradient(colors: [Color.green, Color.green.opacity(0.8)]), startPoint: .topLeading, endPoint: .bottomTrailing)
-            )
-            .clipShape(Capsule())
-            .shadow(color: Color.green.opacity(0.3), radius: 8, x: 0, y: 4)
         }
         .disabled(appState.isProcessingOCR)
     }
@@ -279,19 +282,13 @@ struct GroupChatView: View {
             showingSplitMoney = true
         }) {
             HStack(spacing: 6) {
-                Image(systemName: "plus")
-                    .font(.system(size: 14, weight: .bold))
+                Image(systemName: "plus.circle.fill")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(.blue)
                 Text("Split")
-                    .font(.system(size: 13, weight: .bold))
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.primary)
             }
-            .foregroundColor(.white)
-            .padding(.horizontal, 18)
-            .padding(.vertical, 10)
-            .background(
-                LinearGradient(gradient: Gradient(colors: [Color.blue, Color.blue.opacity(0.8)]), startPoint: .topLeading, endPoint: .bottomTrailing)
-            )
-            .clipShape(Capsule())
-            .shadow(color: Color.blue.opacity(0.4), radius: 10, x: 0, y: 6)
         }
     }
     
@@ -549,6 +546,50 @@ struct ExpenseMessageBubble: View {
         return group.expenses.contains { $0.isSettlement && $0.relatedExpenseId == expense.id && $0.paidBy?.id == currentUser.id }
     }
     
+    private var settledExpensesForFullSettlement: [Expense] {
+        guard expense.isFullSettlement else { return [] }
+        guard let payerId = expense.paidBy?.id, let receiverId = expense.splitDetails.first?.user?.id else { return [] }
+        
+        let priorFullSettlementDate = group.expenses.filter { e in
+            guard e.isFullSettlement, e.id != expense.id, e.date < expense.date else { return false }
+            let ePaidById = e.paidBy?.id
+            let eReceiverId = e.splitDetails.first?.user?.id
+            let matches = (ePaidById == payerId && eReceiverId == receiverId) || (ePaidById == receiverId && eReceiverId == payerId)
+            return matches
+        }
+        .map { $0.date }
+        .max() ?? Date.distantPast
+        
+        return group.expenses.filter { e in
+            guard !e.isSettlement, e.date > priorFullSettlementDate, e.date < expense.date else { return false }
+            
+            let ePaidById = e.paidBy?.id
+            let payerOwesReceiver = (ePaidById == receiverId && e.splitDetails.contains { $0.user?.id == payerId })
+            let receiverOwesPayer = (ePaidById == payerId && e.splitDetails.contains { $0.user?.id == receiverId })
+            
+            guard payerOwesReceiver || receiverOwesPayer else { return false }
+            
+            let participantId = payerOwesReceiver ? payerId : receiverId
+            let isAlreadyIndividuallySettled = group.expenses.contains { s in
+                s.isSettlement && !s.isFullSettlement && s.relatedExpenseId == e.id && s.paidBy?.id == participantId && s.date < expense.date
+            }
+            
+            return !isAlreadyIndividuallySettled
+        }
+        .sorted { $0.date > $1.date }
+    }
+    
+    private func shareAmountForSettledExpense(_ exp: Expense, payerId: UUID, receiverId: UUID) -> (amount: Double, isDeduction: Bool) {
+        if exp.paidBy?.id == receiverId {
+            let share = exp.splitDetails.first(where: { $0.user?.id == payerId })?.amount ?? exp.amount
+            return (amount: share, isDeduction: false)
+        } else if exp.paidBy?.id == payerId {
+            let share = exp.splitDetails.first(where: { $0.user?.id == receiverId })?.amount ?? exp.amount
+            return (amount: share, isDeduction: true)
+        }
+        return (amount: exp.amount, isDeduction: false)
+    }
+    
     private func checkIsSettled(detail: SplitDetail) -> Bool {
         guard let participantId = detail.user?.id, !expense.isSettlement else { return false }
         let expensePayerId = expense.paidBy?.id
@@ -570,6 +611,15 @@ struct ExpenseMessageBubble: View {
             }
             
             return false
+        }
+    }
+    
+    private var sortedSplitDetails: [SplitDetail] {
+        guard let currentUserId = appState.currentUser?.id else { return expense.splitDetails }
+        return expense.splitDetails.sorted { d1, d2 in
+            if d1.user?.id == currentUserId { return true }
+            if d2.user?.id == currentUserId { return false }
+            return (d1.user?.firstName ?? "") < (d2.user?.firstName ?? "")
         }
     }
     
@@ -627,9 +677,9 @@ struct ExpenseMessageBubble: View {
     
     var body: some View {
         HStack {
-            if isCurrentUser { Spacer(minLength: 60) }
+            if isCurrentUser { Spacer(minLength: 80) }
             
-            VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 8) {
+            VStack(alignment: isCurrentUser ? .trailing : .leading, spacing: 6) {
                 // Reply/Link Header
                 if let related = relatedExpense {
                     Button {
@@ -656,8 +706,21 @@ struct ExpenseMessageBubble: View {
                     }
                     .buttonStyle(.plain)
                     .padding(.bottom, 2)
+                } else if expense.isFullSettlement {
+                    HStack(spacing: 6) {
+                        Image(systemName: "checkmark.circle.fill")
+                        Text("Full Balance Settled")
+                            .font(.system(size: 11, weight: .bold))
+                        Spacer()
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(isCurrentUser ? Color.white.opacity(0.15) : Color.green.opacity(0.1))
+                    .foregroundColor(isCurrentUser ? .white : .green)
+                    .cornerRadius(4)
+                    .padding(.bottom, 2)
                 }
-
+                
                 // Header Info
                 HStack(alignment: .center) {
                     if expense.isSettlement {
@@ -668,7 +731,7 @@ struct ExpenseMessageBubble: View {
                     
                     VStack(alignment: .leading, spacing: 1) {
                         Text(expense.title)
-                            .font(.system(size: 15, weight: .bold))
+                            .font(.system(size: 14, weight: .bold))
                             .foregroundColor(isCurrentUser ? .white : .primary)
                             .lineLimit(1)
                         
@@ -680,7 +743,7 @@ struct ExpenseMessageBubble: View {
                     Spacer()
                     
                     Text("\(group.currencySymbol)\(String(format: "%.2f", expense.amount))")
-                        .font(.system(size: 18, weight: .bold))
+                        .font(.system(size: 16, weight: .bold))
                         .foregroundColor(isCurrentUser ? .white : (expense.isSettlement ? .green : .blue))
                 }
                 
@@ -701,7 +764,7 @@ struct ExpenseMessageBubble: View {
                     
                     // Split Details
                     VStack(spacing: 6) {
-                        ForEach(expense.splitDetails.prefix(5)) { detail in
+                        ForEach(sortedSplitDetails.prefix(5)) { detail in
                             splitDetailRow(detail)
                         }
                         
@@ -714,6 +777,45 @@ struct ExpenseMessageBubble: View {
                     }
                     .foregroundColor(isCurrentUser ? .white.opacity(0.9) : .primary.opacity(0.8))
                 } else {
+                    if expense.isFullSettlement {
+                        let settledList = settledExpensesForFullSettlement
+                        if !settledList.isEmpty {
+                            Divider()
+                                .background(isCurrentUser ? Color.white.opacity(0.3) : Color(.separator))
+                            
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Settled splits:")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundColor(isCurrentUser ? .white.opacity(0.8) : .secondary)
+                                
+                                ForEach(settledList.prefix(4)) { exp in
+                                    HStack {
+                                        Text(exp.title)
+                                            .font(.system(size: 12))
+                                            .lineLimit(1)
+                                        Spacer()
+                                        let shareData = shareAmountForSettledExpense(exp, payerId: expense.paidBy?.id ?? UUID(), receiverId: expense.splitDetails.first?.user?.id ?? UUID())
+                                        let prefix = shareData.isDeduction ? "-" : ""
+                                        Text("\(prefix)\(group.currencySymbol)\(String(format: "%.2f", shareData.amount))")
+                                            .font(.system(size: 12, weight: .semibold))
+                                            .foregroundColor(isCurrentUser ? .white : .primary)
+                                    }
+                                }
+                                if settledList.count > 4 {
+                                    Text("+ \(settledList.count - 4) more")
+                                        .font(.system(size: 10))
+                                        .italic()
+                                        .frame(maxWidth: .infinity, alignment: .trailing)
+                                }
+                            }
+                            .foregroundColor(isCurrentUser ? .white.opacity(0.9) : .primary.opacity(0.8))
+                            .padding(.vertical, 4)
+                            
+                            Divider()
+                                .background(isCurrentUser ? Color.white.opacity(0.3) : Color(.separator))
+                        }
+                    }
+                    
                     // Settlement specific footer
                     let receiverName = expense.splitDetails.first?.user?.firstName ?? "Unknown"
                     HStack(spacing: 4) {
@@ -724,7 +826,7 @@ struct ExpenseMessageBubble: View {
                     .foregroundColor(isCurrentUser ? .white.opacity(0.8) : .secondary)
                 }
             }
-            .padding(12)
+            .padding(10)
             .background(
                 Group {
                     if isCurrentUser {
@@ -738,15 +840,15 @@ struct ExpenseMessageBubble: View {
                     }
                 }
             )
-            .cornerRadius(16)
+            .cornerRadius(14)
             .overlay(
-                RoundedRectangle(cornerRadius: 16)
+                RoundedRectangle(cornerRadius: 14)
                     .stroke(isHighlighted ? highlightColor : (expense.isSettlement ? Color.green.opacity(0.3) : Color.clear), lineWidth: isHighlighted ? 2 : 1)
             )
             .scaleEffect(isHighlighted ? 1.03 : 1.0)
             .shadow(color: isHighlighted ? highlightColor.opacity(0.4) : Color.black.opacity(0.04), radius: isHighlighted ? 10 : 4, x: 0, y: isHighlighted ? 5 : 2)
             
-            if !isCurrentUser { Spacer(minLength: 40) }
+            if !isCurrentUser { Spacer(minLength: 60) }
         }
     }
 }
