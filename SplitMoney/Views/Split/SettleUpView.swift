@@ -7,6 +7,8 @@ struct SettleUpView: View {
     @Environment(AppState.self) var appState
     
     let group: SplitGroup
+    @State private var showingNudgeAlert = false
+    @State private var nudgeMessage = ""
     
     // Balance calculation per member relative to current user
     // Positive: They owe you. Negative: You owe them.
@@ -94,9 +96,12 @@ struct SettleUpView: View {
                             
                             VStack(spacing: 0) {
                                 ForEach(memberBalances, id: \.user.id) { item in
-                                    SettlementRow(user: item.user, balance: item.balance, currencySymbol: group.currencySymbol) {
+                                    SettlementRow(user: item.user, balance: item.balance, currencySymbol: group.currencySymbol, onSettle: {
                                         settleBalance(with: item.user, amount: item.balance)
-                                    }
+                                    }, onNudge: {
+                                        nudgeMessage = "Reminder successfully sent to \(item.user.firstName)!"
+                                        showingNudgeAlert = true
+                                    })
                                     
                                     if item.user.id != memberBalances.last?.user.id {
                                         Divider().padding(.leading, 70)
@@ -118,6 +123,11 @@ struct SettleUpView: View {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Done") { dismiss() }
                 }
+            }
+            .alert("Reminder Sent 💸", isPresented: $showingNudgeAlert) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text(nudgeMessage)
             }
         }
     }
@@ -155,8 +165,7 @@ struct SettleUpView: View {
     }
     
     private func hapticFeedback(_ type: UINotificationFeedbackGenerator.FeedbackType) {
-        let generator = UINotificationFeedbackGenerator()
-        generator.notificationOccurred(type)
+        HapticManager.playNotification(type)
     }
 }
 
@@ -165,6 +174,7 @@ struct SettlementRow: View {
     let balance: Double
     let currencySymbol: String
     let onSettle: () -> Void
+    var onNudge: (() -> Void)? = nil
     
     var body: some View {
         HStack(spacing: 16) {
@@ -201,14 +211,32 @@ struct SettlementRow: View {
                     .font(.system(size: 16, weight: .bold, design: .rounded))
                     .foregroundColor(balance > 0 ? .green : .red)
                 
-                Button(action: onSettle) {
-                    Text("Settle")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(balance > 0 ? Color.green : Color.red)
-                        .cornerRadius(8)
+                HStack(spacing: 8) {
+                    if balance > 0 {
+                        Button {
+                            HapticManager.playImpact(.light)
+                            NotificationService.shared.sendInstantNudge(to: user.firstName, amount: balance, currencySymbol: currencySymbol)
+                            onNudge?()
+                        } label: {
+                            Text("Remind")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(.blue)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(Color.blue.opacity(0.15))
+                                .cornerRadius(8)
+                        }
+                    }
+                    
+                    Button(action: onSettle) {
+                        Text("Settle")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(balance > 0 ? Color.green : Color.red)
+                            .cornerRadius(8)
+                    }
                 }
             }
         }

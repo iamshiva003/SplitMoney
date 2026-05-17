@@ -15,6 +15,9 @@ struct GroupProfileView: View {
     @State private var showingPhotoPicker = false
     @State private var pendingImageData: Data? = nil
     @State private var showingManageMembers = false
+    @State private var showingFullGroupImage = false
+    @State private var pendingCropImage: UIImage? = nil
+    @State private var showingCropper = false
 
     let currencies = [
         "🇮🇳 ₹ INR", "🇺🇸 $ USD", "🇬🇧 £ GBP",
@@ -32,7 +35,11 @@ struct GroupProfileView: View {
                     // ── Group avatar ─────────────────────────────
                     VStack(spacing: 10) {
                         Button {
-                            if isEditing { showingPhotoPicker = true }
+                            if isEditing { 
+                                showingPhotoPicker = true 
+                            } else if displayImageData != nil {
+                                showingFullGroupImage = true
+                            }
                         } label: {
                             ZStack(alignment: .bottomTrailing) {
                                 if let data = displayImageData, let img = UIImage(data: data) {
@@ -74,13 +81,15 @@ struct GroupProfileView: View {
                                       matching: .images)
                         .onChange(of: selectedPhotoItem) { _, item in
                             Task {
-                                if let data = try? await item?.loadTransferable(type: Data.self) {
-                                    pendingImageData = data
-                                    selectedPhotoItem = nil
+                                if let data = try? await item?.loadTransferable(type: Data.self),
+                                   let img = UIImage(data: data) {
+                                    await MainActor.run { 
+                                        pendingCropImage = img
+                                        showingCropper = true
+                                    }
                                 }
                             }
                         }
-                        .disabled(!isEditing)
 
                         if isEditing {
                             Button("Change Photo") { showingPhotoPicker = true }
@@ -276,6 +285,31 @@ struct GroupProfileView: View {
             }
             .sheet(isPresented: $showingManageMembers) {
                 ManageMembersView(group: group)
+            }
+            .sheet(isPresented: $showingFullGroupImage) {
+                if let data = displayImageData, let img = UIImage(data: data) {
+                    VStack {
+                        Spacer()
+                        Image(uiImage: img)
+                            .resizable()
+                            .scaledToFit()
+                            .clipShape(RoundedRectangle(cornerRadius: 24))
+                            .shadow(color: Color.black.opacity(0.15), radius: 20, x: 0, y: 10)
+                            .padding(24)
+                        Spacer()
+                    }
+                    .presentationDragIndicator(.visible)
+                    .presentationDetents([.fraction(0.65)])
+                    .presentationBackground(.ultraThinMaterial)
+                }
+            }
+            .sheet(isPresented: $showingCropper) {
+                if let img = pendingCropImage {
+                    ImageCropperView(image: img) { cropped in
+                        pendingImageData = cropped.jpegData(compressionQuality: 0.75)
+                        selectedPhotoItem = nil
+                    }
+                }
             }
         }
     }

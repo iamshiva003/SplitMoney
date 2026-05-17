@@ -20,6 +20,8 @@ struct SignupView: View {
     // Profile photo states
     @State private var selectedPhotoItem: PhotosPickerItem? = nil
     @State private var profileImage: UIImage? = nil
+    @State private var pendingCropImage: UIImage? = nil
+    @State private var showingCropper = false
     
     let countryCodes = [
         "🇺🇸 +1", "🇬🇧 +44", "🇮🇳 +91", "🇦🇺 +61", "🇯🇵 +81", "🇩🇪 +49", "🇫🇷 +33", "🇨🇳 +86"
@@ -87,7 +89,10 @@ struct SignupView: View {
                     Task {
                         if let data = try? await newItem?.loadTransferable(type: Data.self),
                            let img = UIImage(data: data) {
-                            await MainActor.run { profileImage = img }
+                            await MainActor.run { 
+                                pendingCropImage = img
+                                showingCropper = true
+                            }
                         }
                     }
                 }
@@ -215,6 +220,13 @@ struct SignupView: View {
             Button("OK") { dismiss() }
         } message: {
             Text("Your account has been created successfully. You will now be taken to the login page to sign in.")
+        }
+        .sheet(isPresented: $showingCropper) {
+            if let img = pendingCropImage {
+                ImageCropperView(image: img) { cropped in
+                    profileImage = cropped
+                }
+            }
         }
     }
     

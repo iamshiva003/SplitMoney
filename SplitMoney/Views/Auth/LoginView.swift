@@ -238,7 +238,6 @@ struct LoginView: View {
     }
     
     private func hapticFeedback(_ type: UINotificationFeedbackGenerator.FeedbackType) {
-        let generator = UINotificationFeedbackGenerator()
-        generator.notificationOccurred(type)
+        HapticManager.playNotification(type)
     }
 }

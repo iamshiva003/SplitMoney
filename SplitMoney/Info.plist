@@ -23,5 +23,7 @@
 	<string>355163829896-edm10jatko5ce3idibkthcudp3e08td4.apps.googleusercontent.com</string>
 	<key>NSContactsUsageDescription</key>
 	<string>Split Money needs access to your contacts to let you add friends to groups.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Split Money requires Face ID / Touch ID access to securely authenticate and unlock your expense data.</string>
 </dict>
 </plist>

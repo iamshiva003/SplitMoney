@@ -11,6 +11,7 @@ struct HomeView: View {
     @State private var searchText = ""
     @State private var showingCreateGroup = false
     @State private var showingProfile = false
+    @State private var showingSettings = false
     @State private var editMode: EditMode = .inactive
     @State private var selectedGroupIds = Set<UUID>()
     @State private var groupToRename: SplitGroup? = nil
@@ -144,6 +145,19 @@ struct HomeView: View {
                             }
 
                             Spacer()
+                            
+                            Button {
+                                hapticFeedback(.light)
+                                showingSettings = true
+                            } label: {
+                                Image(systemName: "gearshape")
+                                    .font(.system(size: 22, weight: .regular))
+                                    .foregroundColor(.primary)
+                                    .frame(width: 44, height: 44, alignment: .trailing)
+                            }
+                            .sheet(isPresented: $showingSettings) {
+                                SettingsView()
+                            }
                         }
                         .padding(.horizontal)
                         
@@ -381,6 +395,12 @@ struct HomeView: View {
 
             }
             .environment(\.editMode, $editMode)
+            .onAppear {
+                NotificationService.shared.updatePendingExpenseReminders(totalOwed: totalToOwe)
+            }
+            .onChange(of: totalToOwe) { _, newOwed in
+                NotificationService.shared.updatePendingExpenseReminders(totalOwed: newOwed)
+            }
         }
     }
     
@@ -394,13 +414,11 @@ struct HomeView: View {
     }
     
     private func hapticFeedback(_ type: UINotificationFeedbackGenerator.FeedbackType) {
-        let generator = UINotificationFeedbackGenerator()
-        generator.notificationOccurred(type)
+        HapticManager.playNotification(type)
     }
     
     private func hapticFeedback(_ type: UIImpactFeedbackGenerator.FeedbackStyle) {
-        let generator = UIImpactFeedbackGenerator(style: type)
-        generator.impactOccurred()
+        HapticManager.playImpact(type)
     }
 }
 
