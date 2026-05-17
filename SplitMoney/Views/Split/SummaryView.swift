@@ -227,8 +227,7 @@ struct SummaryView: View {
         
         try? modelContext.save()
         
-        let generator = UINotificationFeedbackGenerator()
-        generator.notificationOccurred(.success)
+        HapticManager.playNotification(.success)
         parentDismiss()
     }
 }

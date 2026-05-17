@@ -8,6 +8,7 @@ struct CreateGroupView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(AppState.self) var appState
 
+    @AppStorage("defaultCurrency") private var defaultCurrency = "🇮🇳 ₹ INR"
     @State private var groupName = ""
     @State private var selectedCurrency = "🇮🇳 ₹ INR"
     @State private var selectedContacts: Set<UUID> = []
@@ -17,6 +18,8 @@ struct CreateGroupView: View {
     @FocusState private var isGroupNameFocused: Bool
     @State private var selectedPhotoItem: PhotosPickerItem? = nil
     @State private var groupImageData: Data? = nil
+    @State private var pendingCropImage: UIImage? = nil
+    @State private var showingCropper = false
     @State private var showingPhotoPicker = false
 
     let currencies = [
@@ -84,9 +87,12 @@ struct CreateGroupView: View {
                                       matching: .images)
                         .onChange(of: selectedPhotoItem) { _, item in
                             Task {
-                                if let data = try? await item?.loadTransferable(type: Data.self) {
-                                    groupImageData = data
-                                    selectedPhotoItem = nil   // reset so picker always starts fresh
+                                if let data = try? await item?.loadTransferable(type: Data.self),
+                                   let img = UIImage(data: data) {
+                                    await MainActor.run { 
+                                        pendingCropImage = img
+                                        showingCropper = true
+                                    }
                                 }
                             }
                         }
@@ -305,12 +311,21 @@ struct CreateGroupView: View {
                 }
             }
             .onAppear {
+                if selectedCurrency == "🇮🇳 ₹ INR" { selectedCurrency = defaultCurrency }
                 if !hasFetchedContacts { fetchContacts() }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
                     isGroupNameFocused = true
                 }
             }
             .onTapGesture { hideKeyboard() }
+            .sheet(isPresented: $showingCropper) {
+                if let img = pendingCropImage {
+                    ImageCropperView(image: img) { cropped in
+                        groupImageData = cropped.jpegData(compressionQuality: 0.75)
+                        selectedPhotoItem = nil
+                    }
+                }
+            }
         }
     }
 
@@ -370,42 +385,4 @@ struct CreateGroupView: View {
     }
 }
 
-// MARK: - Contact row
-struct ContactRow: View {
-    let contact: DeviceContact
-    let isSelected: Bool
-    let action: () -> Void
 
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 14) {
-                ZStack {
-                    Circle()
-                        .fill(isSelected ? Color.blue : Color.blue.opacity(0.1))
-                        .frame(width: 44, height: 44)
-                    Text(String(contact.fullName.prefix(1)).uppercased())
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(isSelected ? .white : .blue)
-                }
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(contact.fullName)
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundColor(.primary)
-                    if !contact.phoneNumber.isEmpty {
-                        Text(contact.phoneNumber)
-                            .font(.system(size: 13))
-                            .foregroundColor(.secondary)
-                    }
-                }
-                Spacer()
-                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 22))
-                    .foregroundColor(isSelected ? .blue : Color(.systemGray3))
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-    }
-}

@@ -273,13 +273,11 @@ struct SplitMoneyView: View {
     }
     
     private func hapticFeedback(_ style: UIImpactFeedbackGenerator.FeedbackStyle) {
-        let generator = UIImpactFeedbackGenerator(style: style)
-        generator.impactOccurred()
+        HapticManager.playImpact(style)
     }
     
     private func hapticFeedback(_ type: UINotificationFeedbackGenerator.FeedbackType) {
-        let generator = UINotificationFeedbackGenerator()
-        generator.notificationOccurred(type)
+        HapticManager.playNotification(type)
     }
 }
 

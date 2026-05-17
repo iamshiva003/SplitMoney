@@ -3,23 +3,49 @@ import SwiftData
 
 struct ContentView: View {
     @Environment(AppState.self) var appState
-    
+    @Environment(\.scenePhase) var scenePhase
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.colorScheme) private var systemColorScheme
+    
     @AppStorage("loggedInUserId") private var loggedInUserId: String?
+    @AppStorage("appTheme") private var appTheme = "System"
+    @AppStorage("enableBiometrics") private var enableBiometrics = false
+    
+    @State private var isUnlocked = false
+    
+    var isLockActive: Bool {
+        enableBiometrics && !isUnlocked
+    }
     
     var body: some View {
         Group {
-            if appState.isAuthenticated {
-                HomeView()
+            if isLockActive {
+                AppLockView(isUnlocked: $isUnlocked)
             } else {
-                LoginView()
+                Group {
+                    if appState.isAuthenticated {
+                        HomeView()
+                    } else {
+                        LoginView()
+                    }
+                }
+                .sheet(isPresented: Bindable(appState).showIncomingShareFlow) {
+                    IncomingShareView()
+                }
             }
-        }
-        .sheet(isPresented: Bindable(appState).showIncomingShareFlow) {
-            IncomingShareView()
         }
         .onAppear {
             checkLoginState()
+            updateAppTheme(appTheme)
+            _ = NotificationService.shared
+        }
+        .onChange(of: appTheme) { _, newTheme in
+            updateAppTheme(newTheme)
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .background && enableBiometrics {
+                isUnlocked = false
+            }
         }
     }
     
@@ -38,6 +64,21 @@ struct ContentView: View {
             }
         } catch {
             print("Error restoring session: \(error)")
+        }
+    }
+    
+    private func updateAppTheme(_ theme: String) {
+        let style: UIUserInterfaceStyle
+        if theme == "Light" { style = .light }
+        else if theme == "Dark" { style = .dark }
+        else { style = .unspecified }
+        
+        for scene in UIApplication.shared.connectedScenes {
+            if let windowScene = scene as? UIWindowScene {
+                for window in windowScene.windows {
+                    window.overrideUserInterfaceStyle = style
+                }
+            }
         }
     }
 }

@@ -2,8 +2,16 @@ import SwiftUI
 import SwiftData
 import GoogleSignIn
 
+class AppDelegate: NSObject, UIApplicationDelegate {
+    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
+        _ = NotificationService.shared
+        return true
+    }
+}
+
 @main
 struct SplitMoneyApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @State private var appState = AppState()
     
     var sharedModelContainer: ModelContainer = {
