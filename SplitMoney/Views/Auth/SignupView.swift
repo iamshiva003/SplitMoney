@@ -36,7 +36,7 @@ struct SignupView: View {
                     Text("Create Account")
                         .font(.largeTitle)
                         .fontWeight(.bold)
-                    Text("Join Money Split to manage your shared expenses easily.")
+                    Text("Join SplitMoney to manage your shared expenses easily.")
                         .foregroundColor(.gray)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
