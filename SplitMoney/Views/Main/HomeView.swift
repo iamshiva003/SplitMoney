@@ -99,6 +99,17 @@ struct HomeView: View {
         return total
     }
     
+    var timeBasedGreeting: String {
+        let hour = Calendar.current.component(.hour, from: Date())
+        if hour < 12 {
+            return "Good morning,"
+        } else if hour < 17 {
+            return "Good afternoon,"
+        } else {
+            return "Good evening,"
+        }
+    }
+    
     var body: some View {
         ZStack {
             NavigationStack {
@@ -137,7 +148,7 @@ struct HomeView: View {
                             }
 
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("Hello,")
+                                Text(timeBasedGreeting)
                                     .font(.system(size: 14, weight: .medium))
                                     .foregroundColor(.gray)
                                 Text(appState.currentUser?.firstName ?? "Friend")

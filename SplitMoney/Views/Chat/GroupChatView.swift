@@ -20,6 +20,11 @@ struct GroupChatView: View {
     @State private var scanErrorMessage: String? = nil
     @State private var showingScanError = false
     @State private var highlightedExpenseId: UUID? = nil
+    @State private var searchText = ""
+    @State private var isSearching = false
+    @State private var showScrollToBottomButton = false
+    @State private var scrollViewHeight: CGFloat = 800
+    @FocusState private var isSearchFocused: Bool
     
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -134,6 +139,20 @@ struct GroupChatView: View {
         }
     }
     
+    var filteredExpenses: [Expense] {
+        let sorted = group.expenses.sorted(by: { $0.date < $1.date })
+        if searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return sorted
+        } else {
+            return sorted.filter { exp in
+                let titleMatch = exp.title.localizedCaseInsensitiveContains(searchText)
+                let payerMatch = exp.paidBy?.firstName.localizedCaseInsensitiveContains(searchText) ?? false
+                let amountMatch = String(format: "%.0f", exp.amount).contains(searchText)
+                return titleMatch || payerMatch || amountMatch
+            }
+        }
+    }
+    
     @ViewBuilder
     private var messageThread: some View {
         ScrollViewReader { proxy in
@@ -141,8 +160,18 @@ struct GroupChatView: View {
                 LazyVStack(spacing: 16) {
                     if group.expenses.isEmpty {
                         emptyStateView
+                    } else if filteredExpenses.isEmpty {
+                        VStack(spacing: 12) {
+                            Image(systemName: "magnifyingglass")
+                                .font(.system(size: 36))
+                                .foregroundColor(.gray)
+                            Text("No expenses found for \"\(searchText)\"")
+                                .foregroundColor(.gray)
+                                .font(.system(size: 15))
+                        }
+                        .padding(.top, 60)
                     } else {
-                        ForEach(group.expenses.sorted(by: { $0.date < $1.date })) { expense in
+                        ForEach(filteredExpenses) { expense in
                             ExpenseRow(
                                 expense: expense,
                                 group: group,
@@ -180,16 +209,81 @@ struct GroupChatView: View {
                     Spacer()
                         .frame(height: 120)
                         .id("bottom_anchor")
+                        .background(
+                            GeometryReader { geo in
+                                Color.clear
+                                    .onChange(of: geo.frame(in: .named("chat_scroll")).minY) { _, minY in
+                                        let isScrolledUp = minY > (scrollViewHeight - 80)
+                                        if showScrollToBottomButton != isScrolledUp {
+                                            withAnimation(.easeInOut(duration: 0.2)) {
+                                                showScrollToBottomButton = isScrolledUp
+                                            }
+                                        }
+                                    }
+                            }
+                        )
                 }
                 .padding(.horizontal)
                 .padding(.top, 10)
             }
+            .coordinateSpace(name: "chat_scroll")
+            .background(
+                GeometryReader { scrollGeo in
+                    Color.clear
+                        .onAppear { scrollViewHeight = scrollGeo.size.height }
+                        .onChange(of: scrollGeo.size.height) { _, newH in scrollViewHeight = newH }
+                }
+            )
+            .scrollDismissesKeyboard(.interactively)
             .background(Color(.systemGroupedBackground).opacity(0.5))
+            .overlay(
+                ZStack {
+                    if showScrollToBottomButton {
+                        Button(action: {
+                            hapticFeedback(.light)
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                                proxy.scrollTo("bottom_anchor", anchor: .bottom)
+                            }
+                        }) {
+                            ZStack {
+                                VisualBlurView(style: .systemChromeMaterial)
+                                    .frame(width: 44, height: 44)
+                                    .clipShape(Circle())
+                                    .overlay(Circle().stroke(Color.secondary.opacity(0.3), lineWidth: 0.5))
+                                    .shadow(color: Color.black.opacity(0.2), radius: 10, x: 0, y: 5)
+                                
+                                Image(systemName: "chevron.down")
+                                    .font(.system(size: 18, weight: .bold))
+                                    .foregroundColor(.primary)
+                            }
+                        }
+                        .padding(.trailing, 24)
+                        .padding(.bottom, 80)
+                        .transition(.scale.combined(with: .opacity))
+                    }
+                }
+                , alignment: .bottomTrailing
+            )
             .onAppear {
                 scrollToBottom(proxy: proxy)
             }
             .onChange(of: group.expenses.count) {
                 scrollToBottom(proxy: proxy)
+            }
+            .onChange(of: isSearchFocused) { _, focused in
+                if focused {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
+                            proxy.scrollTo("bottom_anchor", anchor: .bottom)
+                        }
+                    }
+                } else {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
+                            proxy.scrollTo("bottom_anchor", anchor: .bottom)
+                        }
+                    }
+                }
             }
         }
     }
@@ -214,28 +308,88 @@ struct GroupChatView: View {
     
     @ViewBuilder
     private var actionButtons: some View {
-        HStack(spacing: 16) {
-            settleButton
-            Divider()
-                .frame(height: 20)
-            scanButton
-            Divider()
-                .frame(height: 20)
-            splitButton
+        HStack(spacing: 12) {
+            if isSearching {
+                HStack(spacing: 10) {
+                    HStack {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundColor(.secondary)
+                        TextField("Search expenses...", text: $searchText)
+                            .textFieldStyle(PlainTextFieldStyle())
+                            .focused($isSearchFocused)
+                            .textInputAutocapitalization(.never)
+                            .disableAutocorrection(true)
+                        
+                        if !searchText.isEmpty {
+                            Button(action: { searchText = "" }) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(VisualBlurView(style: .systemThinMaterial))
+                    .clipShape(Capsule())
+                    .overlay(
+                        Capsule()
+                            .stroke(Color.primary.opacity(0.05), lineWidth: 0.5)
+                    )
+                    
+                    Button("Cancel") {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
+                            searchText = ""
+                            isSearchFocused = false
+                            isSearching = false
+                        }
+                    }
+                    .foregroundColor(.blue)
+                    .transition(.move(edge: .trailing).combined(with: .opacity))
+                }
+                .frame(maxWidth: 360)
+                .transition(.asymmetric(insertion: .scale(scale: 0.95).combined(with: .opacity), removal: .scale(scale: 0.95).combined(with: .opacity)))
+            } else {
+                HStack(spacing: 4) {
+                    settleButton
+                    scanButton
+                    splitButton
+                }
+                .padding(6)
+                .background(VisualBlurView(style: .systemChromeMaterial).clipShape(Capsule()))
+                .overlay(Capsule().stroke(Color.secondary.opacity(0.25), lineWidth: 0.5))
+                .shadow(color: Color.black.opacity(0.18), radius: 25, x: 0, y: 12)
+                .transition(.asymmetric(insertion: .scale(scale: 0.95).combined(with: .opacity), removal: .scale(scale: 0.95).combined(with: .opacity)))
+                
+                searchButton
+                    .transition(.asymmetric(insertion: .scale(scale: 0.95).combined(with: .opacity), removal: .scale(scale: 0.95).combined(with: .opacity)))
+            }
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
-        .background(
-            VisualBlurView(style: .systemChromeMaterial)
-                .clipShape(Capsule())
-        )
-        .overlay(
-            Capsule()
-                .stroke(Color.secondary.opacity(0.3), lineWidth: 0.5)
-        )
-        .shadow(color: Color.black.opacity(0.15), radius: 15, x: 0, y: 8)
-        .padding(.bottom, 24)
+        .padding(.horizontal, 16)
+        .padding(.bottom, 8)
         .frame(maxWidth: .infinity, alignment: .center)
+    }
+    
+    @ViewBuilder
+    private var searchButton: some View {
+        Button(action: {
+            hapticFeedback(.medium)
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
+                isSearching = true
+                isSearchFocused = true
+            }
+        }) {
+            ZStack {
+                VisualBlurView(style: .systemChromeMaterial)
+                    .frame(width: 62, height: 62)
+                    .clipShape(Circle())
+                    .overlay(Circle().stroke(Color.secondary.opacity(0.25), lineWidth: 0.5))
+                    .shadow(color: Color.black.opacity(0.18), radius: 25, x: 0, y: 12)
+                
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundColor(.primary)
+            }
+        }
     }
     
     @ViewBuilder
@@ -244,33 +398,32 @@ struct GroupChatView: View {
             hapticFeedback(.medium)
             showingSettleUp = true
         }) {
-            HStack(spacing: 6) {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(.green)
+            VStack(spacing: 4) {
+                Image(systemName: "checkmark.circle")
+                    .font(.system(size: 22, weight: .regular))
                 Text("Settle")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.primary)
+                    .font(.system(size: 11, weight: .semibold))
             }
+            .foregroundColor(.primary)
+            .frame(width: 68, height: 50)
         }
     }
     
     @ViewBuilder
     private var scanButton: some View {
         PhotosPicker(selection: $selectedItem, matching: .images) {
-            HStack(spacing: 6) {
+            VStack(spacing: 4) {
                 if appState.isProcessingOCR {
-                    ProgressView()
-                        .tint(.primary)
+                    ProgressView().tint(.primary).frame(width: 22, height: 22)
                 } else {
-                    Image(systemName: "doc.viewfinder.fill")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundColor(.purple)
+                    Image(systemName: "doc.viewfinder")
+                        .font(.system(size: 22, weight: .regular))
                 }
                 Text("Scan")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.primary)
+                    .font(.system(size: 11, weight: .semibold))
             }
+            .foregroundColor(.primary)
+            .frame(width: 68, height: 50)
         }
         .disabled(appState.isProcessingOCR)
     }
@@ -281,14 +434,14 @@ struct GroupChatView: View {
             hapticFeedback(.medium)
             showingSplitMoney = true
         }) {
-            HStack(spacing: 6) {
-                Image(systemName: "plus.circle.fill")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(.blue)
+            VStack(spacing: 4) {
+                Image(systemName: "plus.circle")
+                    .font(.system(size: 22, weight: .regular))
                 Text("Split")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.primary)
+                    .font(.system(size: 11, weight: .semibold))
             }
+            .foregroundColor(.primary)
+            .frame(width: 68, height: 50)
         }
     }
     

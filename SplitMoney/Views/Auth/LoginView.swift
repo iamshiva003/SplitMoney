@@ -19,12 +19,15 @@ struct LoginView: View {
                         .frame(height: 60)
                     
                     // Logo or Title
-                    VStack(spacing: 8) {
-                        Image(systemName: "dollarsign.arrow.circlepath")
-                            .font(.system(size: 60, weight: .bold))
-                            .foregroundStyle(Color.blue)
+                    VStack(spacing: 12) {
+                        Image("Logo")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 84, height: 84)
+                            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                            .shadow(color: Color.accentColor.opacity(0.3), radius: 10, x: 0, y: 5)
                         
-                        Text("Money Split")
+                        Text("SplitMoney")
                             .font(.largeTitle)
                             .fontWeight(.heavy)
                     }
