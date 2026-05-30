@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import LinkPresentation
 import Contacts
 import PhotosUI
 import Vision
@@ -25,6 +26,7 @@ struct GroupChatView: View {
     @State private var showScrollToBottomButton = false
     @State private var scrollViewHeight: CGFloat = 800
     @FocusState private var isSearchFocused: Bool
+    @State private var shareSheetItem: ShareItem? = nil
     
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -75,6 +77,10 @@ struct GroupChatView: View {
         }
         .sheet(isPresented: $showingAddMembers) {
             ManageMembersView(group: group)
+        }
+        .sheet(item: $shareSheetItem) { item in
+            ShareSheet(activityItems: [item.activityItem])
+                .presentationDetents([.medium, .large])
         }
     }
     
@@ -180,6 +186,9 @@ struct GroupChatView: View {
                                 onDelete: {
                                     expenseToDelete = $0
                                     showingDeleteConfirmation = true
+                                },
+                                onShare: { exp in
+                                    shareExpenseReceipt(exp)
                                 },
                                 onScrollTo: { id in
                                     withAnimation(.spring(response: 0.35, dampingFraction: 0.7)) {
@@ -616,6 +625,56 @@ extension GroupChatView {
     
     private func hapticFeedback(_ style: UIImpactFeedbackGenerator.FeedbackStyle) {
         HapticManager.playImpact(style)
+    }
+    
+    @MainActor
+    private func shareExpenseReceipt(_ expense: Expense) {
+        hapticFeedback(.medium)
+        
+        let receiptView = BillReceiptView(expense: expense, group: group)
+            .environment(\.colorScheme, .light) // Ensure nice high contrast light receipt
+        
+        let renderer = ImageRenderer(content: receiptView)
+        renderer.scale = 3.0
+        
+        if let uiImage = renderer.uiImage {
+            let title = expense.isSettlement ? "Settlement Receipt" : "Expense: \(expense.title)"
+            let itemSource = ImageShareActivityItemSource(image: uiImage, title: title)
+            self.shareSheetItem = ShareItem(activityItem: itemSource)
+        }
+    }
+}
+
+struct ShareItem: Identifiable {
+    let id = UUID()
+    let activityItem: Any
+}
+
+class ImageShareActivityItemSource: NSObject, UIActivityItemSource {
+    let image: UIImage
+    let title: String
+    
+    init(image: UIImage, title: String) {
+        self.image = image
+        self.title = title
+        super.init()
+    }
+    
+    func activityViewControllerPlaceholderItem(_ activityViewController: UIActivityViewController) -> Any {
+        return image
+    }
+    
+    func activityViewController(_ activityViewController: UIActivityViewController, itemForActivityType activityType: UIActivity.ActivityType?) -> Any? {
+        return image
+    }
+    
+    func activityViewControllerLinkMetadata(_ activityViewController: UIActivityViewController) -> LPLinkMetadata? {
+        let metadata = LPLinkMetadata()
+        metadata.title = title
+        metadata.originalURL = URL(string: "file:///split-receipt.png")
+        metadata.imageProvider = NSItemProvider(object: image)
+        metadata.iconProvider = NSItemProvider(object: image)
+        return metadata
     }
 }
 

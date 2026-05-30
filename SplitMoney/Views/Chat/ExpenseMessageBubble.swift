@@ -7,6 +7,7 @@ struct ExpenseRow: View {
     let currentUserId: UUID?
     let onEdit: (Expense) -> Void
     let onDelete: (Expense) -> Void
+    let onShare: (Expense) -> Void
     var onScrollTo: ((UUID) -> Void)? = nil
     var onSettle: ((Expense) -> Void)? = nil
     var onMarkAsSettled: ((Expense, SplitDetail) -> Void)? = nil
@@ -35,6 +36,13 @@ struct ExpenseRow: View {
                     } label: {
                         Label("Settle this expense", systemImage: "checkmark.circle")
                     }
+                }
+                
+                Button {
+                    hapticFeedback(.success)
+                    onShare(expense)
+                } label: {
+                    Label("Share Split Receipt", systemImage: "square.and.arrow.up")
                 }
                 
                 Button(role: .destructive) {

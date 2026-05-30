@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ImageCropperView: View {
     @Environment(\.dismiss) var dismiss
+    @Environment(\.displayScale) var displayScale
     let image: UIImage
     let onCrop: (UIImage) -> Void
     
@@ -99,7 +100,7 @@ struct ImageCropperView: View {
         .clipped()
         
         let renderer = ImageRenderer(content: renderView)
-        renderer.scale = UIScreen.main.scale
+        renderer.scale = displayScale
         if let croppedImage = renderer.uiImage {
             onCrop(croppedImage)
             dismiss()

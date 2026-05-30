@@ -26,7 +26,43 @@ struct SplitMoneyApp: App {
         do {
             return try ModelContainer(for: schema, configurations: [modelConfiguration])
         } catch {
+            #if DEBUG
+            // SwiftData Schema mismatch or migration failure occurred.
+            // In development/DEBUG mode, we can automatically delete the old SQLite files and recreate the container
+            // so the developer doesn't experience a crash-loop after modifying models.
+            let url = modelConfiguration.url
+            let fileManager = FileManager.default
+            
+            print("⚠️ SwiftData ModelContainer creation failed: \(error). resetting local store at: \(url.path)")
+            
+            // Clean up main store file and possible SQLite WAL/SHM sidecar files
+            let urlsToDelete = [
+                url,
+                url.appendingPathExtension("wal"),
+                url.appendingPathExtension("shm"),
+                url.deletingPathExtension().appendingPathExtension("sqlite-wal"),
+                url.deletingPathExtension().appendingPathExtension("sqlite-shm")
+            ]
+            
+            for deleteUrl in urlsToDelete {
+                try? fileManager.removeItem(at: deleteUrl)
+            }
+            
+            if let walUrl = URL(string: url.absoluteString + "-wal") {
+                try? fileManager.removeItem(at: walUrl)
+            }
+            if let shmUrl = URL(string: url.absoluteString + "-shm") {
+                try? fileManager.removeItem(at: shmUrl)
+            }
+            
+            do {
+                return try ModelContainer(for: schema, configurations: [modelConfiguration])
+            } catch {
+                fatalError("Fatal Error: Could not recreate ModelContainer after resetting store: \(error)")
+            }
+            #else
             fatalError("Could not create ModelContainer: \(error)")
+            #endif
         }
     }()
 

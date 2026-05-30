@@ -114,6 +114,7 @@ struct SettleUpView: View {
                         }
                     }
                 }
+                .frame(maxWidth: .infinity)
                 .padding(.vertical)
             }
             .background(Color(.systemGroupedBackground))
