@@ -13,6 +13,7 @@ struct SplitMoneyView: View {
     
     // State to hold custom amounts per user id
     @State private var customAmounts: [UUID: String] = [:]
+    @State private var lockedUserAmounts: Set<UUID> = []
     
     // Toggle for members participating
     @State private var participatingMembers: Set<UUID> = []
@@ -86,6 +87,14 @@ struct SplitMoneyView: View {
                                 Spacer()
                                 Button(action: {
                                     isEqualSplit.toggle()
+                                    if !isEqualSplit {
+                                        // Transitioning to custom split: pre-populate with equal shares
+                                        let cleanTotal = amountString.replacingOccurrences(of: ",", with: ".")
+                                        if let totalAmount = Double(cleanTotal) {
+                                            lockedUserAmounts.removeAll()
+                                            recalculateAutomaticSplits(totalAmount: totalAmount)
+                                        }
+                                    }
                                     hapticFeedback(.light)
                                 }) {
                                     Text(isEqualSplit ? "Equally" : "Custom")
@@ -107,7 +116,7 @@ struct SplitMoneyView: View {
                                         isEqualSplit: isEqualSplit,
                                         amount: Binding(
                                             get: { customAmounts[member.id] ?? "" },
-                                            set: { customAmounts[member.id] = $0 }
+                                            set: { handleCustomAmountChange(for: member.id, value: $0) }
                                         ),
                                         onToggle: {
                                             toggleParticipation(for: member.id)
@@ -199,6 +208,12 @@ struct SplitMoneyView: View {
                     }
                 }
             }
+            .onChange(of: amountString) { _, newValue in
+                let cleanTotal = newValue.replacingOccurrences(of: ",", with: ".")
+                if let totalAmount = Double(cleanTotal) {
+                    recalculateAutomaticSplits(totalAmount: totalAmount)
+                }
+            }
             .navigationDestination(for: SplitSummaryData.self) { data in
                 SummaryView(
                     title: data.title,
@@ -267,8 +282,54 @@ struct SplitMoneyView: View {
     private func toggleParticipation(for id: UUID) {
         if participatingMembers.contains(id) {
             participatingMembers.remove(id)
+            lockedUserAmounts.remove(id)
+            customAmounts[id] = ""
         } else {
             participatingMembers.insert(id)
+        }
+        
+        let cleanTotal = amountString.replacingOccurrences(of: ",", with: ".")
+        if let totalAmount = Double(cleanTotal) {
+            recalculateAutomaticSplits(totalAmount: totalAmount)
+        }
+    }
+    
+    private func handleCustomAmountChange(for memberId: UUID, value: String) {
+        customAmounts[memberId] = value
+        
+        let cleanTotal = amountString.replacingOccurrences(of: ",", with: ".")
+        guard let totalAmount = Double(cleanTotal) else { return }
+        
+        let cleanVal = value.replacingOccurrences(of: ",", with: ".")
+        if let valDouble = Double(cleanVal), valDouble > 0 {
+            lockedUserAmounts.insert(memberId)
+        } else if value.isEmpty {
+            lockedUserAmounts.remove(memberId)
+        }
+        
+        recalculateAutomaticSplits(totalAmount: totalAmount)
+    }
+    
+    private func recalculateAutomaticSplits(totalAmount: Double) {
+        guard !isEqualSplit else { return }
+        
+        let lockedParticipants = participatingMembers.intersection(lockedUserAmounts)
+        
+        var lockedSum: Double = 0
+        for id in lockedParticipants {
+            let cleanAmt = (customAmounts[id] ?? "0").replacingOccurrences(of: ",", with: ".")
+            lockedSum += Double(cleanAmt) ?? 0
+        }
+        
+        let unlockedParticipants = participatingMembers.subtracting(lockedParticipants)
+        
+        if !unlockedParticipants.isEmpty {
+            let remainingAmount = max(0.0, totalAmount - lockedSum)
+            let share = remainingAmount / Double(unlockedParticipants.count)
+            
+            for id in unlockedParticipants {
+                customAmounts[id] = String(format: "%.2f", share)
+            }
         }
     }
     
