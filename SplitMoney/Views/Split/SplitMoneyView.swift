@@ -242,6 +242,7 @@ struct SplitMoneyView: View {
                 tempDetails.append(PendingSplitDetail(userId: member.id, userName: member.firstName, amount: splitAmount))
             }
         } else {
+            recalculateAutomaticSplits(totalAmount: totalAmount)
             for member in participants {
                 let cleanAmt = (customAmounts[member.id] ?? "0").replacingOccurrences(of: ",", with: ".")
                 let amt = Double(cleanAmt) ?? 0
@@ -261,6 +262,7 @@ struct SplitMoneyView: View {
         guard let totalAmount = Double(cleanAmount) else { return false }
         
         if !isEqualSplit {
+            recalculateAutomaticSplits(totalAmount: totalAmount)
             var sum: Double = 0
             for id in participatingMembers {
                 let cleanAmt = (customAmounts[id] ?? "0").replacingOccurrences(of: ",", with: ".")
@@ -297,20 +299,19 @@ struct SplitMoneyView: View {
     private func handleCustomAmountChange(for memberId: UUID, value: String) {
         customAmounts[memberId] = value
         
-        let cleanTotal = amountString.replacingOccurrences(of: ",", with: ".")
-        guard let totalAmount = Double(cleanTotal) else { return }
-        
-        let cleanVal = value.replacingOccurrences(of: ",", with: ".")
-        if let valDouble = Double(cleanVal), valDouble > 0 {
+        if !value.isEmpty {
             lockedUserAmounts.insert(memberId)
-        } else if value.isEmpty {
+        } else {
             lockedUserAmounts.remove(memberId)
         }
         
-        recalculateAutomaticSplits(totalAmount: totalAmount)
+        let cleanTotal = amountString.replacingOccurrences(of: ",", with: ".")
+        guard let totalAmount = Double(cleanTotal) else { return }
+        
+        recalculateAutomaticSplits(totalAmount: totalAmount, skipMemberId: memberId)
     }
     
-    private func recalculateAutomaticSplits(totalAmount: Double) {
+    private func recalculateAutomaticSplits(totalAmount: Double, skipMemberId: UUID? = nil) {
         guard !isEqualSplit else { return }
         
         let lockedParticipants = participatingMembers.intersection(lockedUserAmounts)
@@ -328,7 +329,9 @@ struct SplitMoneyView: View {
             let share = remainingAmount / Double(unlockedParticipants.count)
             
             for id in unlockedParticipants {
-                customAmounts[id] = String(format: "%.2f", share)
+                if id != skipMemberId {
+                    customAmounts[id] = String(format: "%.2f", share)
+                }
             }
         }
     }
