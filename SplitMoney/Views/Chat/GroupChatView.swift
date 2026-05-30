@@ -27,6 +27,7 @@ struct GroupChatView: View {
     @State private var scrollViewHeight: CGFloat = 800
     @FocusState private var isSearchFocused: Bool
     @State private var shareSheetItem: ShareItem? = nil
+    @Namespace private var searchNamespace
     
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -323,6 +324,7 @@ struct GroupChatView: View {
                     HStack {
                         Image(systemName: "magnifyingglass")
                             .foregroundColor(.secondary)
+                            .matchedGeometryEffect(id: "searchIcon", in: searchNamespace)
                         TextField("Search expenses...", text: $searchText)
                             .textFieldStyle(PlainTextFieldStyle())
                             .focused($isSearchFocused)
@@ -338,7 +340,10 @@ struct GroupChatView: View {
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
-                    .background(VisualBlurView(style: .systemThinMaterial))
+                    .background(
+                        VisualBlurView(style: .systemThinMaterial)
+                            .matchedGeometryEffect(id: "searchBG", in: searchNamespace)
+                    )
                     .clipShape(Capsule())
                     .overlay(
                         Capsule()
@@ -346,7 +351,7 @@ struct GroupChatView: View {
                     )
                     
                     Button("Cancel") {
-                        withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.72)) {
                             searchText = ""
                             isSearchFocused = false
                             isSearching = false
@@ -356,7 +361,6 @@ struct GroupChatView: View {
                     .transition(.move(edge: .trailing).combined(with: .opacity))
                 }
                 .frame(maxWidth: 360)
-                .transition(.asymmetric(insertion: .scale(scale: 0.95).combined(with: .opacity), removal: .scale(scale: 0.95).combined(with: .opacity)))
             } else {
                 HStack(spacing: 4) {
                     settleButton
@@ -382,13 +386,14 @@ struct GroupChatView: View {
     private var searchButton: some View {
         Button(action: {
             hapticFeedback(.medium)
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.75)) {
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.72)) {
                 isSearching = true
                 isSearchFocused = true
             }
         }) {
             ZStack {
                 VisualBlurView(style: .systemChromeMaterial)
+                    .matchedGeometryEffect(id: "searchBG", in: searchNamespace)
                     .frame(width: 62, height: 62)
                     .clipShape(Circle())
                     .overlay(Circle().stroke(Color.secondary.opacity(0.25), lineWidth: 0.5))
@@ -397,6 +402,7 @@ struct GroupChatView: View {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 20, weight: .bold))
                     .foregroundColor(.primary)
+                    .matchedGeometryEffect(id: "searchIcon", in: searchNamespace)
             }
         }
     }
